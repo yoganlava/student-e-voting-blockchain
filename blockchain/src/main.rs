@@ -2,6 +2,7 @@ use blockchain::crypto;
 
 use colored::*;
 use std::fmt::Write;
+use std::fs::File;
 use std::future::Future;
 use std::net::SocketAddr;
 use jsonrpsee::{rpc_params, RpcModule};
