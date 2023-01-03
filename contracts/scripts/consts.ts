@@ -1,0 +1,1 @@
+export const ADMIN_ADDRESS = "terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v";

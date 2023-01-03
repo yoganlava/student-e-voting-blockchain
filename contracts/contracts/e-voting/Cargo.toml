@@ -1,0 +1,40 @@
+[package]
+name = "e-voting"
+version = "0.1.0"
+authors = [""]
+edition = "2018"
+license = "Apache-2.0"
+description = "E-voting Contracts"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cosmwasm-std = "1.1.0"
+cosmwasm-schema = "1.1.0"
+cw-storage-plus = "0.16.0"
+thiserror = "1.0.31"
+rand = "0.8"
+serde = "1.0"
+ecies = {version = "0.2.3", default-features = false, features = ["pure"]}
+hex = "0.4.3"
+serde-big-array = "0.4.1"
+
+[dev-dependencies]
