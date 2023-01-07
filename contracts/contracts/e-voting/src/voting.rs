@@ -1,12 +1,12 @@
 use std::str::FromStr;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, entry_point, StdResult, Deps, to_binary, Storage, Binary, StdError, BlockInfo, Addr};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, entry_point, StdResult, Deps, to_binary, Storage, Binary, StdError, BlockInfo, Addr, Order};
 use ecies::{PublicKey, SecretKey};
 use ecies::utils::generate_keypair;
 use rand::Rng;
 use crate::error::ContractError;
 use crate::msg::{ClosePollKind, ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::response::{IsAdminResponse, PollResponse, PollsResponse, PollVoteCountResponse};
-use crate::state::{PollVote, Config, CONFIG, Poll, POLLS, PollStatus, VoteKind, VOTERS, VOTES, next_poll_id, PollVotes};
+use crate::state::{PollVote, Config, CONFIG, Poll, POLLS, PollStatus, VoteKind, VOTERS, VOTES, next_poll_id, PollVotes, Voter};
 use crate::state::PollStatus::Active;
 use crate::utils::{decrypt_message_from_hex, encrypt_message_to_hex};
 
@@ -72,7 +72,11 @@ pub fn execute(
         },
         &env.block),
         // TODO MAKE AND THEN START FRONTEND
-        ExecuteMsg::RegisterVoter { .. } => {}
+        ExecuteMsg::RegisterVoter {
+            name,
+            email,
+            student_code
+        } => {}
         // Veto close
         ExecuteMsg::ClosePoll {
             poll_id,
@@ -211,6 +215,32 @@ fn execute_close_poll(storage: &mut dyn Storage, poll_id: u64, kind: ClosePollKi
     Ok(Response::new()
         .add_attribute("action", "close")
         .add_attribute("status", kind.to_string())
+    )
+}
+
+pub fn execute_register_voter(storage: &mut dyn Storage, voter: Voter) -> Result<Response, ContractError> {
+    if VOTERS.has(storage, voter.addr.clone()){
+        return Err(ContractError::VoterAlreadyExist {})
+    }
+
+    // Check if email already been added
+    let res = VOTERS
+        .range(storage, None, None, Order::Ascending)
+        .try_for_each( |item| {
+            let (_, current_voter) = item.unwrap();
+            if current_voter.email == voter.email {
+                return Err(ContractError::VoterAlreadyExist {})
+            }
+            Ok(())
+        });
+    if res.is_err() {
+        return Err(ContractError::VoterAlreadyExist {});
+    }
+
+    VOTERS.save(storage, voter.addr.clone(), &voter);
+
+    Ok(Response::new()
+        .add_attribute("action", "register_voter")
     )
 }
 

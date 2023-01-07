@@ -149,10 +149,10 @@ pub struct PollVote {
 
 #[cw_serde]
 pub struct Voter {
-    addr: Addr,
-    name: String,
-    email: String,
-    student_code: u64,
+    pub addr: Addr,
+    pub name: String,
+    pub email: String,
+    pub student_code: u64,
 }
 
 pub const CONFIG: Item<Config> = Item::new("config");
