@@ -4,7 +4,6 @@
         <a href="#"><li>Active Polls</li></a>
         <a href="#"><li>Profile</li></a>
     </div>
-	<!-- TODO Profile -->
 </ul>
 
 <style lang="scss">
