@@ -1,7 +1,7 @@
 
 use cosmwasm_schema::{cw_serde};
 use crate::msg::ClosePollKind::Rejected;
-use crate::state::{PollKind, PollStatus};
+use crate::state::{Config, PollKind, PollStatus};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -50,6 +50,9 @@ pub enum ExecuteMsg {
     ClosePoll {
         poll_id: u64,
         kind: ClosePollKind
+    },
+    ChangeConfig {
+        config: Config
     }
 }
 

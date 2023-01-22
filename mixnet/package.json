@@ -1,0 +1,16 @@
+{
+  "name": "mixnet",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/websocket": "^7.1.2",
+    "fastify": "^4.12.0",
+    "pino-pretty": "^9.1.1"
+  }
+}
