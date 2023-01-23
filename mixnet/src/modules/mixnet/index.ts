@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { MixnetNodeMsg, MixnetNodeMsgType } from "./types";
-import { addNode, getConnectedNodes, removeNode } from "../nodes";
+import { addNode, getConnectedNodesCount, removeNode } from "../nodes";
 
 const path = "/mixnet";
 
@@ -13,7 +13,7 @@ export default async function routes(
 
     fastify.get(path + "/nodes", async (req, res) => {
         res.send({
-            nodes: getConnectedNodes().length,
+            nodes: getConnectedNodesCount(),
         });
     });
 
@@ -25,8 +25,18 @@ export default async function routes(
                 const msg: MixnetNodeMsg = JSON.parse(message.toString());
                 switch (msg.type) {
                     case MixnetNodeMsgType.REGISTER:
-                        fastify.log.info("[MixNet] MixNet Node registered");
+                        if (!msg.data.id) {
+                            conn.socket.send(
+                                JSON.stringify({
+                                    error: "No id provided",
+                                })
+                            );
+                            return;
+                        }
                         addNode(conn);
+                        fastify.log.info(
+                            `[MixNet] MixNet Node registered - Node ID: ${msg.data.id}`
+                        );
                         conn.socket.send(
                             JSON.stringify({
                                 message: "Node registered",
@@ -34,7 +44,25 @@ export default async function routes(
                         );
                         break;
                     // Result from encryption
-                    case MixnetNodeMsgType.RESULT:
+                    case MixnetNodeMsgType.ENCRYPTION_RESULT:
+                        if (!msg.data.id) {
+                            conn.socket.send(
+                                JSON.stringify({
+                                    error: "No id provided",
+                                })
+                            );
+                            return;
+                        }
+                        break;
+                    case MixnetNodeMsgType.DECRYPTION_RESULT:
+                        if (!msg.data.id) {
+                            conn.socket.send(
+                                JSON.stringify({
+                                    error: "No id provided",
+                                })
+                            );
+                            return;
+                        }
                         break;
                     default:
                         conn.socket.send(
