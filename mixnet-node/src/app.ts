@@ -42,13 +42,21 @@ ws.on("message", async (data) => {
         const db = await getDatabase();
         switch (msg.type) {
             case MixnetMessageType.KEY:
-                console.log("[MixNet Node] Key recieved")
-                await db.run("INSERT INTO KEYS (poll_id, key) VALUES (?, ?)", msg.data.poll_id, msg.data.key)
+                console.log("[MixNet Node] Key recieved");
+                await db.run(
+                    "INSERT INTO KEYS (poll_id, key) VALUES (?, ?)",
+                    msg.data.poll_id,
+                    msg.data.key
+                );
+                break;
+            case MixnetMessageType.DECRYPT:
+                break;
+            case MixnetMessageType.ENCRYPT:
                 break;
             default:
                 ws.send(
                     JSON.stringify({
-                        error: "Invalid msg type"
+                        error: "Invalid msg type",
                     })
                 );
         }

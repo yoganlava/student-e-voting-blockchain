@@ -4,17 +4,7 @@ export enum MixnetNodeMsgType {
     DECRYPTION_RESULT = "decryption_result",
 }
 
-interface RegisterMsg {
-    id: string;
-}
-interface DecryptionResultMsg {
-    id: string;
-}
-interface EncryptionResultMsg {
-    id: string;
-}
-
 export interface MixnetNodeMsg {
     type: MixnetNodeMsgType;
-    data: RegisterMsg | DecryptionResultMsg | EncryptionResultMsg;
+    data: any;
 }

@@ -8,6 +8,8 @@ dotenv.config();
 initialiseClientAndWallet();
 initialiseNodes();
 
+// TODO: Write unit tests if possible
+
 const fastify = Fastify({
     logger: {
         transport: {
