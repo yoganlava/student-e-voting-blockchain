@@ -2,9 +2,9 @@ import sqlite3 from "sqlite3";
 import { Database, open } from 'sqlite'
 
 const migration = `
-CREATE TABLE IF NOT EXISTS ID (id char);
+CREATE TABLE IF NOT EXISTS id (id char);
 
-CREATE TABLE IF NOT EXISTS KEYS (poll_id integer, key varchar);
+CREATE TABLE IF NOT EXISTS keys (poll_id integer, public_key varchar, private_key varchar);
 `
 
 let _db: Database;
