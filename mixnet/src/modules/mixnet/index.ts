@@ -1,6 +1,13 @@
 import { FastifyInstance } from "fastify";
 import { MixnetNodeMsg, MixnetNodeMsgType } from "./types";
-import { addNode, getConnectedNodesCount, removeNode } from "../nodes";
+import {
+    addNode,
+    broadcastKeyCreateToNodes,
+    getConnectedNodesCount,
+    removeNode,
+} from "../nodes";
+import { queryContract } from "../terra";
+import { getDatabase } from "../db";
 
 const path = "/mixnet";
 
@@ -9,7 +16,56 @@ export default async function routes(
     options: Object
 ) {
     console.log(`Registered ${path}`);
-    fastify.post(path + "/notify", async (req, res) => {});
+
+    fastify.post(path + "/notify/create/:pollID", async (req, res) => {
+        try {
+            // cba to infer type
+            const pollID = parseInt((req.params as any).pollID);
+
+            // TODO: make type
+            const pollRes: any = await queryContract({
+                Poll: {
+                    poll_id: pollID,
+                },
+            });
+
+            if (pollRes.error) {
+                res.send({
+                    error: "Invalid poll",
+                });
+            }
+
+            await broadcastKeyCreateToNodes(await getDatabase(), pollID);
+        } catch (e) {
+            res.send({
+                error: "Internal Server error",
+            });
+        }
+    });
+
+    fastify.post(path + "/notify/finish/:pollID", async (req, res) => {
+        try {
+            // cba to infer type
+            const pollID = parseInt((req.params as any).pollID);
+
+            // TODO: make type
+            const pollRes: any = await queryContract({
+                Poll: {
+                    poll_id: pollID,
+                },
+            });
+
+            if (pollRes.error) {
+                res.send({
+                    error: "Invalid poll",
+                });
+            }
+        } catch (e) {
+            res.send({
+                error: "Internal Server error",
+            });
+        }
+    });
 
     fastify.get(path + "/nodes", async (req, res) => {
         res.send({
@@ -33,7 +89,7 @@ export default async function routes(
                             );
                             return;
                         }
-                        addNode(conn);
+                        // addNode(conn);
                         fastify.log.info(
                             `[MixNet] MixNet Node registered - Node ID: ${msg.data.id}`
                         );
@@ -83,7 +139,7 @@ export default async function routes(
 
         conn.socket.on("disconnect", () => {
             fastify.log.info("[MixNet] MixNet Node disconnected");
-            removeNode(conn);
+            // removeNode(conn);
         });
     });
 }

@@ -8,18 +8,21 @@ let _wallet: Wallet;
 
 export function initialiseClientAndWallet() {
     if (!_client) _client = new LocalTerra();
-    if (!_wallet) _wallet = _client.wallet(
-        new MnemonicKey(
-            {
-                mnemonic: process.env.WALLET_MNEMONIC
-            }
-        )
-    ) 
+    if (!_wallet)
+        _wallet = _client.wallet(
+            new MnemonicKey({
+                mnemonic: process.env.WALLET_MNEMONIC,
+            })
+        );
 }
 
 export async function signAndBroadcastTx(...msgs: Msg[]) {
     const signedTx = await _wallet.createAndSignTx({
-        msgs
+        msgs,
     });
     return await _client.tx.broadcast(signedTx);
+}
+
+export async function queryContract(query: Object) {
+    return await _client.wasm.contractQuery(process.env.CONTRACT_ADDR as string, query);
 }
