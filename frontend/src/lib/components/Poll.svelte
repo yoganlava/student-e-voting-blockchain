@@ -8,7 +8,7 @@
 </script>
 
 <div class="poll">
-    <p class="poll__title">{poll.title}</p>
+    <a class="poll__title" href="#">{poll.title}</a>
     <p class="poll__voter-count">Voters: {poll.voters}</p>
     <div class="poll__stats">
         <PollStats/>
@@ -34,6 +34,8 @@
             padding: 0.5rem;
             font-size: 1.5rem;
             grid-area: title;
+            text-decoration: none;
+            color: white;
         }
 
         &__voter-count {

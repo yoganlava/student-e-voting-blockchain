@@ -4,12 +4,18 @@ import {
     addNode,
     broadcastKeyCreateToNodes,
     getConnectedNodesCount,
+    getNodeByID,
     removeNode,
 } from "../nodes";
 import { queryContract } from "../terra";
 import { getDatabase } from "../db";
+import { Mutex } from "async-mutex";
 
 const path = "/mixnet";
+
+let pollLocks: {
+    [key:number]: Mutex
+} = {};
 
 export default async function routes(
     fastify: FastifyInstance,
@@ -60,6 +66,37 @@ export default async function routes(
                     error: "Invalid poll",
                 });
             }
+
+            // TODO: make type
+            const votesRes: any = await queryContract(
+                {
+                    EncryptedVotes: {
+                        pollID
+                    }
+                }
+            );
+                
+            const db = await getDatabase();
+
+            const keyOrder = await db.all("SELECT * FROM key_order where poll_id = ?", pollID);
+            
+            pollLocks[pollID] = new Mutex();
+
+            for (const order of keyOrder) {
+                const node = getNodeByID(order.node_id);
+                if (!node) {
+                    // TODO: null check
+                    return
+                }
+                await pollLocks[pollID].acquire();
+                node.socket.send(
+                    JSON.stringify({
+                        type: "encrypt",
+                        data: votesRes.encrypted_votes
+                    })
+                );
+            }
+            await pollLocks[pollID].release();
         } catch (e) {
             res.send({
                 error: "Internal Server error",
@@ -76,7 +113,7 @@ export default async function routes(
     fastify.get(path + "/ws", { websocket: true }, async (conn, req) => {
         fastify.log.info("[MixNet] MixNet Node connected");
 
-        conn.socket.on("message", (message: Buffer) => {
+        conn.socket.on("message", async (message: Buffer) => {
             try {
                 const msg: MixnetNodeMsg = JSON.parse(message.toString());
                 switch (msg.type) {
@@ -109,6 +146,8 @@ export default async function routes(
                             );
                             return;
                         }
+
+                        await pollLocks[msg.data.poll_id].release();
                         break;
                     case MixnetNodeMsgType.DECRYPTION_RESULT:
                         if (!msg.data.id) {

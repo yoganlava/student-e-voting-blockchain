@@ -18,6 +18,10 @@ export function removeNode(connID: string): void {
 export function getConnectedNodesCount(): number {
     return _connectedNodes.size;
 }
+
+export function getNodeByID(id: string) {
+    return _connectedNodes.get(id);
+}
 // Fisher-Yates
 // https://stackoverflow.com/questions/2450954/how-to-randomize-shuffle-a-javascript-array
 function shuffle(array: Array<any>): Array<any> {
