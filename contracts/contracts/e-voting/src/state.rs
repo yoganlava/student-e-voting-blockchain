@@ -1,5 +1,5 @@
 use std::fmt;
-use std::ops::{Add, Div};
+use std::ops::Add;
 use std::str::FromStr;
 use cosmwasm_schema::{cw_serde};
 use cosmwasm_schema::serde::{Serialize, Deserialize};
@@ -11,6 +11,7 @@ use serde_big_array::BigArray;
 pub struct Config {
     pub voting_token_addr: Addr,
     pub admins: Vec<Addr>,
+    pub mixnet_addr: Addr
     // pub owner: Vec<Addr>,
     // pub poll_count: u64,
     // pub staked_tokens: Uint128
@@ -66,7 +67,8 @@ impl FromStr for VoteKind {
 pub struct PollVotes {
     pub total: u64,
     pub up_votes: u64,
-    pub down_votes: u64
+    pub down_votes: u64,
+    pub list: Vec<PollVote>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -159,7 +161,7 @@ pub const CONFIG: Item<Config> = Item::new("config");
 pub const POLLS: Map<u64, Poll> = Map::new("polls");
 pub const POLL_COUNT: Item<u64> = Item::new("poll_count");
 // Votes (voter_addr, poll_id)
-pub const VOTES: Map<(Addr, u64), PollVote> = Map::new("votes");
+// pub const VOTES: Map<(Addr, u64), PollVote> = Map::new("votes");
 pub const VOTERS: Map<Addr, Voter> = Map::new("voters");
 
 pub fn next_poll_id(storage: &mut dyn Storage) -> StdResult<u64> {
@@ -171,42 +173,3 @@ pub fn next_poll_id(storage: &mut dyn Storage) -> StdResult<u64> {
 pub fn register_voter(storage: &mut dyn Storage, addr: &Addr, voter: &Voter) {
     VOTERS.save(storage, addr.clone(), voter).unwrap();
 }
-//     pub creator: Addr,
-//     pub status: PollStatus,
-//     pub quorum_percentage: Option<u8>,
-//     pub yes_votes: Uint128,
-//     pub no_votes: Uint128,
-//     pub voters: Vec<Addr>,
-//     pub voter_info: Vec<Voter>,
-//     pub end_height: u64,
-//     pub start_height: Option<u64>,
-//     pub description: String,
-// }
-
-//
-// #[cw_serde]
-// #[derive(Default)]
-// pub struct TokenManager {
-//     pub token_balance: Uint128,             // total staked balance
-//     pub locked_tokens: Vec<(u64, Uint128)>, //maps poll_id to weight voted
-//     pub participated_polls: Vec<u64>,       // poll_id
-// }
-//
-// #[cw_serde]
-// pub struct Voter {
-//     pub vote: String,
-//     pub weight: Uint128,
-// }
-//
-// #[cw_serde]
-// pub enum PollStatus {
-//     InProgress,
-//     Tally,
-//     Passed,
-//     Rejected,
-// }
-//
-
-//
-
-// pub const BANK: Map<&[u8], TokenManager> = Map::new("bank");

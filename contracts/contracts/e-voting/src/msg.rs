@@ -1,11 +1,10 @@
-
 use cosmwasm_schema::{cw_serde};
-use crate::msg::ClosePollKind::Rejected;
 use crate::state::{Config, PollKind, PollStatus};
 
 #[cw_serde]
 pub struct InstantiateMsg {
     pub voting_token_addr: String,
+    pub mixnet_addr: String
 }
 
 // Can either Pass or Reject a poll

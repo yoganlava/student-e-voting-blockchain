@@ -7,21 +7,39 @@ import {
     getNodeByID,
     removeNode,
 } from "../nodes";
-import { queryContract } from "../terra";
+import { executeContractMessage, queryContract } from "../terra";
 import { getDatabase } from "../db";
-import { Mutex } from "async-mutex";
+import { Worker } from "worker_threads";
 
 const path = "/mixnet";
 
-let pollLocks: {
-    [key:number]: Mutex
-} = {};
+//TODO: Make type
+async function handleQueueMessage(message: any) {
+    const nodeID = message.nodes_left.shift();
+
+    if (!nodeID) {
+        // TODO: handle
+        return;
+    }
+
+    const connectedNode = getNodeByID(nodeID);
+
+    if (!connectedNode) {
+        // TODO: handle
+        return;
+    }
+
+    connectedNode.socket.send(JSON.stringify(message));
+}
 
 export default async function routes(
     fastify: FastifyInstance,
     options: Object
 ) {
     console.log(`Registered ${path}`);
+
+    const queueWorker = new Worker("./src/workers/queueWorker.ts");
+    queueWorker.on("message", handleQueueMessage);
 
     fastify.post(path + "/notify/create/:pollID", async (req, res) => {
         try {
@@ -68,35 +86,29 @@ export default async function routes(
             }
 
             // TODO: make type
-            const votesRes: any = await queryContract(
+            const votesRes: any = await queryContract({
+                EncryptedVotes: {
+                    pollID,
+                },
+            });
+
+            const db = await getDatabase();
+
+            const keyOrder = await db.all(
+                "SELECT * FROM key_order where poll_id = ?",
+                pollID
+            );
+
+            queueWorker.postMessage(
                 {
-                    EncryptedVotes: {
-                        pollID
+                    type: "decrypt",
+                    data: {
+                        poll_id: pollID,
+                        votes: votesRes.encrypted_votes,
+                        nodes_left: keyOrder.map((o) => o.node_id),
                     }
                 }
             );
-                
-            const db = await getDatabase();
-
-            const keyOrder = await db.all("SELECT * FROM key_order where poll_id = ?", pollID);
-            
-            pollLocks[pollID] = new Mutex();
-
-            for (const order of keyOrder) {
-                const node = getNodeByID(order.node_id);
-                if (!node) {
-                    // TODO: null check
-                    return
-                }
-                await pollLocks[pollID].acquire();
-                node.socket.send(
-                    JSON.stringify({
-                        type: "encrypt",
-                        data: votesRes.encrypted_votes
-                    })
-                );
-            }
-            await pollLocks[pollID].release();
         } catch (e) {
             res.send({
                 error: "Internal Server error",
@@ -147,7 +159,11 @@ export default async function routes(
                             return;
                         }
 
-                        await pollLocks[msg.data.poll_id].release();
+                        if (!msg.data.nodes_left.length) {
+                            // TODO: send back data
+                        }
+
+                        queueWorker.postMessage(msg);
                         break;
                     case MixnetNodeMsgType.DECRYPTION_RESULT:
                         if (!msg.data.id) {
@@ -158,6 +174,19 @@ export default async function routes(
                             );
                             return;
                         }
+
+                        if (!msg.data.nodes_left.length) {
+                            // TODO: handle error
+                            await executeContractMessage({
+                                ExecutePushUnMixedVotes: {
+                                    poll_id: msg.data.poll_id,
+                                    votes: msg.data.votes
+                                }
+                            });
+                            return;
+                        }
+
+                        queueWorker.postMessage(msg.data);
                         break;
                     default:
                         conn.socket.send(
@@ -181,4 +210,6 @@ export default async function routes(
             // removeNode(conn);
         });
     });
+
+    console.log("Start queue");
 }

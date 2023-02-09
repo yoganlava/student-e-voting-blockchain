@@ -4,7 +4,7 @@ use crate::response::{IsAdminResponse, PollResponse, PollVoteCountResponse, Poll
 use crate::state::PollStatus::Active;
 use crate::state::{
     next_poll_id, Config, Poll, PollStatus, PollVote, PollVotes, VoteKind, Voter, CONFIG, POLLS,
-    VOTERS, VOTES,
+    VOTERS,
 };
 use crate::utils::{decrypt_message_from_hex, encrypt_message_to_hex};
 use cosmwasm_std::{
@@ -26,6 +26,7 @@ pub fn instantiate(
     let state = Config {
         voting_token_addr: deps.api.addr_validate(&msg.voting_token_addr)?,
         admins: vec![],
+        mixnet_addr: deps.api.addr_validate(&msg.mixnet_addr)?
     };
 
     CONFIG.save(deps.storage, &state)?;
@@ -51,14 +52,23 @@ pub fn execute(
             return execute_create_poll(
                 deps.storage,
                 Poll {
+                    id: 0,
                     creator: info.sender,
                     kind,
                     status: PollStatus::Active,
+                    threshold_percentage: None,
                     start_height,
                     end_height,
                     title,
                     description,
-                    ..Default::default()
+                    public_key: [0; 65],
+                    secret_key: [0; 32],
+                    votes: PollVotes {
+                        total: 0,
+                        up_votes: 0,
+                        down_votes: 0,
+                        list: vec![]
+                    }
                 },
             )
         }
@@ -150,7 +160,7 @@ fn execute_cast_vote(
     // check if encryption is correct??
 
     // check if already voted
-    if !VOTES.has(storage, (vote.voter_addr.clone(), vote.poll_id)) {
+    if poll.votes.list.iter().any(|v| v.voter_addr == vote.voter_addr) {
         return Err(ContractError::AlreadyVoted {});
     }
 
@@ -162,40 +172,60 @@ fn execute_cast_vote(
     // update poll state
     poll.votes.total += 1;
     poll.update_status(block, storage);
+    poll.votes.list.push(PollVote {
+                                       voter_addr: vote.voter_addr.clone(),
+                                       poll_id: vote.poll_id,
+                                       decrypted_vote_kind: None,
+                                       encrypted_vote: vec![vote.encrypted_vote, tracker_hex].join("."),
+                                       tracker: None,
+                                   });
     POLLS.save(storage, poll.id, &poll).unwrap();
 
-    VOTES
-        .save(
-            storage,
-            (vote.voter_addr.clone(), vote.poll_id),
-            &PollVote {
-                voter_addr: vote.voter_addr.clone(),
-                poll_id: vote.poll_id,
-                decrypted_vote_kind: None,
-                encrypted_vote: vec![vote.encrypted_vote, tracker_hex].join("."),
-                tracker: None,
-            },
-        )
-        .unwrap();
+    // VOTES
+    //     .save(
+    //         storage,
+    //         (vote.voter_addr.clone(), vote.poll_id),
+    //         &PollVote {
+    //             voter_addr: vote.voter_addr.clone(),
+    //             poll_id: vote.poll_id,
+    //             decrypted_vote_kind: None,
+    //             encrypted_vote: vec![vote.encrypted_vote, tracker_hex].join("."),
+    //             tracker: None,
+    //         },
+    //     )
+    //     .unwrap();
 
     Ok(Response::new()
         .add_attribute("action", "vote")
         .add_attribute("tracker", tracker))
 }
 
-fn decrypt_votes(storage: &mut dyn Storage, secret_key: SecretKey, poll_id: u64) -> (u64, u64) {
-    let filtered_poll_votes = &VOTES
-        .range(storage, None, None, cosmwasm_std::Order::Ascending)
-        .filter(|item| {
-            let ((_, vote_poll_id), _) = item.as_ref().unwrap();
-            *vote_poll_id == poll_id
-        })
-        .collect::<Vec<_>>();
+fn execute_push_unmixed_votes(storage: &mut dyn Storage, poll_id: u64, votes: Vec<PollVote>) -> Result<Response, ContractError> {
+    let mut poll = match POLLS.may_load(storage, poll_id)? {
+        Some(poll) => Some(poll),
+        None => return Err(ContractError::PollNotExist {}),
+    }.unwrap();
+
+    poll.votes.list = votes;
+    POLLS.save(storage, poll.id, &poll).unwrap();
+
+    Ok(Response::new()
+        .add_attribute("push_unmixed_votes", "vote")
+        .add_attribute("poll_id", poll_id.to_string()))
+}
+
+fn decrypt_votes(storage: &mut dyn Storage, secret_key: SecretKey, poll_id: u64) -> Result<(u64, u64), ContractError> {
+
+    let mut poll = match POLLS.may_load(storage, poll_id)? {
+        Some(poll) => Some(poll),
+        None => return Err(ContractError::PollNotExist {}),
+    }.unwrap();
+
     let mut up_votes = 0u64;
     let mut down_votes = 0u64;
-    filtered_poll_votes.iter().for_each(|item| {
+    poll.votes.list = poll.votes.list.iter().map(|item| {
         // TODO make less dirty
-        let (key, mut vote) = item.as_ref().unwrap().clone();
+        let mut vote = item.to_owned();
         let decrypted_vote = decrypt_message_from_hex(secret_key, vote.encrypted_vote.clone());
         let strings: Vec<&str> = decrypted_vote.split(".").collect();
         let decrypted_vote_kind = VoteKind::from_str(strings[0]).unwrap();
@@ -212,9 +242,12 @@ fn decrypt_votes(storage: &mut dyn Storage, secret_key: SecretKey, poll_id: u64)
         vote.tracker = Some(u64::from_str(strings[1]).unwrap());
 
         // save vote
-        VOTES.save(storage, key.clone(), &vote).unwrap();
-    });
-    (up_votes, down_votes)
+        vote
+    }).collect();
+
+    POLLS.save(storage, poll.id, &poll).unwrap();
+
+    Ok((up_votes, down_votes))
 }
 
 fn is_admin(storage: &dyn Storage, addr: Addr) -> bool {
@@ -252,7 +285,7 @@ fn execute_close_poll(
         storage,
         SecretKey::parse(&poll.secret_key).unwrap(),
         poll_id,
-    );
+    ).unwrap();
 
     POLLS.save(storage, poll.id, &poll).unwrap();
 
@@ -284,7 +317,7 @@ pub fn execute_register_voter(
         return Err(ContractError::VoterAlreadyExist {});
     }
 
-    VOTERS.save(storage, voter.addr.clone(), &voter);
+    VOTERS.save(storage, voter.addr.clone(), &voter)?;
 
     Ok(Response::new().add_attribute("action", "register_voter"))
 }
