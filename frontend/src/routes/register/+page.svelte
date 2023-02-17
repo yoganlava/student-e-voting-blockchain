@@ -39,7 +39,7 @@
 
 <style lang="scss">
 	.register-container {
-		margin: auto;
+		margin: 1rem auto;
 		text-align: center;
 		max-width: 30rem;
 		border: 2px solid black;
