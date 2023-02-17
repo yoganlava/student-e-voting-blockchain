@@ -4,9 +4,23 @@
     font-family: "Inter";
 }
 
-
 .page-container {
     > div {
         margin-top: 1rem;
     }
+}
+
+input[type=text] {
+    border: 2px solid black;
+    border-radius: 0.5rem;
+    padding: 0.2rem;
+}
+
+.btn {
+    appearance: none;
+    background-color: black;
+    color: white;
+    border-radius: 0.2rem;
+    padding: 0.5rem;
+    cursor: pointer;
 }

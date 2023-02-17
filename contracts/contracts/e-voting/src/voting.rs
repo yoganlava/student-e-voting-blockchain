@@ -93,7 +93,14 @@ pub fn execute(
             name,
             email,
             student_code,
-        } => {}
+        } => {
+            return execute_register_voter(deps.storage, Voter {
+                name,
+                email,
+                student_code,
+                addr: info.sender
+            })
+        }
         // Veto close
         ExecuteMsg::ClosePoll { poll_id, kind } => {
             return execute_close_poll(deps.storage, poll_id, kind, info.sender)
@@ -101,6 +108,34 @@ pub fn execute(
         ExecuteMsg::ChangeConfig { .. } => {}
     }
     Ok(Response::default())
+}
+
+fn execute_register_voter(
+    storage: &mut dyn Storage,
+    voter: Voter,
+) -> Result<Response, ContractError> {
+    if VOTERS.has(storage, voter.addr.clone()) {
+        return Err(ContractError::VoterAlreadyExist {});
+    }
+
+    // Check if email/code already been added
+    let res = VOTERS
+        .range(storage, None, None, Order::Ascending)
+        .try_for_each(|item| {
+            let (_, current_voter) = item.unwrap();
+            if current_voter.email == voter.email || current_voter.student_code == voter.student_code {
+                return Err(ContractError::VoterAlreadyExist {});
+            }
+            Ok(())
+        });
+
+    if res.is_err() {
+        return Err(ContractError::VoterAlreadyExist {});
+    }
+
+    VOTERS.save(storage, voter.addr.clone(), &voter)?;
+
+    Ok(Response::new().add_attribute("action", "register_voter").ad)
 }
 
 fn execute_change_config(
@@ -292,34 +327,6 @@ fn execute_close_poll(
     Ok(Response::new()
         .add_attribute("action", "close")
         .add_attribute("status", kind.to_string()))
-}
-
-pub fn execute_register_voter(
-    storage: &mut dyn Storage,
-    voter: Voter,
-) -> Result<Response, ContractError> {
-    if VOTERS.has(storage, voter.addr.clone()) {
-        return Err(ContractError::VoterAlreadyExist {});
-    }
-
-    // Check if email already been added
-    let res = VOTERS
-        .range(storage, None, None, Order::Ascending)
-        .try_for_each(|item| {
-            let (_, current_voter) = item.unwrap();
-            if current_voter.email == voter.email {
-                return Err(ContractError::VoterAlreadyExist {});
-            }
-            Ok(())
-        });
-
-    if res.is_err() {
-        return Err(ContractError::VoterAlreadyExist {});
-    }
-
-    VOTERS.save(storage, voter.addr.clone(), &voter)?;
-
-    Ok(Response::new().add_attribute("action", "register_voter"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

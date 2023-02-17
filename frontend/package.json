@@ -25,7 +25,16 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@esbuild-plugins/node-globals-polyfill": "^0.2.3",
+		"@esbuild-plugins/node-modules-polyfill": "^0.2.2",
+		"@fortawesome/free-solid-svg-icons": "^6.3.0",
 		"@terra-money/wallet-provider": "^3.11.2",
-		"node-sass": "^8.0.0"
+		"@walletconnect/socket-transport": "^1.8.0",
+		"buffer": "^6.0.3",
+		"dotenv": "^16.0.3",
+		"node-sass": "^8.0.0",
+		"process": "^0.11.10",
+		"readable-stream": "^4.3.0",
+		"svelte-fa": "^3.0.3"
 	}
 }

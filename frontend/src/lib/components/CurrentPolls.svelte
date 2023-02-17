@@ -1,12 +1,12 @@
 <script>
-	import Poll from '$lib/components/Poll.svelte';
+	import PollCard from '$lib/components/PollCard.svelte';
 </script>
 
 <div class="current-polls">
 	<h1>Current Polls:</h1>
 	<div class="current-polls__list">
-		<Poll />
-		<Poll />
+		<PollCard />
+		<PollCard />
 	</div>
 </div>
 

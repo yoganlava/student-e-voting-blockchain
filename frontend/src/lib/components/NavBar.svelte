@@ -1,8 +1,14 @@
+<script>
+	import TokenBalance from "./TokenBalance.svelte";
+	import WalletConnect from "./WalletConnect.svelte";
+</script>
 <ul class="nav-bar">
-	<a class="nav-bar__logo" href="#">Surrey E-Vote</a>
+	<a class="nav-bar__logo" href="/">Surrey E-Vote</a>
 	<div class="nav-bar__items">
         <a href="#"><li>Active Polls</li></a>
         <a href="#"><li>Profile</li></a>
+        <TokenBalance/>
+        <WalletConnect/>
     </div>
 </ul>
 
@@ -26,6 +32,7 @@
         }
 
 		&__items {
+            display: inline;
             align-items: center;
             a {
                 height: 100%;
