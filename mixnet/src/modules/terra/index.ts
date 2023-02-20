@@ -13,6 +13,7 @@ export function initialiseClientAndWallet() {
             mnemonic: process.env.WALLET_MNEMONIC,
         })
     );
+    console.log("Initialised Wallet");
 }
 
 export function getWallet() {
@@ -27,11 +28,13 @@ export async function signAndBroadcastTx(...msgs: Msg[]) {
 }
 
 export async function executeContractMessage(msg: Object) {
-    return await signAndBroadcastTx(new MsgExecuteContract(
-        getWallet().key.accAddress,
-        process.env.CONTRACT_ADDR as string,
-        msg
-    ));
+    return await signAndBroadcastTx(
+        new MsgExecuteContract(
+            getWallet().key.accAddress,
+            process.env.CONTRACT_ADDR as string,
+            msg
+        )
+    );
 }
 
 export async function queryContract(query: Object) {

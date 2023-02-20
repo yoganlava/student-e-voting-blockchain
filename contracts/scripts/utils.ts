@@ -6,10 +6,23 @@ import {
 
 import fs from "fs";
 
-export async function createSignedTransaction(wallet, msg) {
+export async function createSignedTransaction(client, wallet, msg) {
+    // const { account_number, sequence } = await wallet.accountNumberAndSequence();
     return await wallet.createAndSignTx({
         msgs: [msg],
     });
+    // const tx = await wallet.createTx({
+    //     msgs: [msg],
+    // });
+    // const { account_number, sequence } =
+    //     await wallet.accountNumberAndSequence();
+    // console.log("Signing tx");
+    // return await wallet.key.signTx(tx, {
+    //     accountNumber: account_number,
+    //     sequence: sequence,
+    //     chainID: client.config.chainID,
+    //     signMode: 1,
+    // });
 }
 
 export async function sleep(timeout: number) {
@@ -23,8 +36,14 @@ export async function broadcastTransaction(client, signedTransaction) {
 }
 
 export async function makeTransaction(client, wallet, msg) {
-    const signedTransaction = await createSignedTransaction(wallet, msg);
+    const signedTransaction = await createSignedTransaction(
+        client,
+        wallet,
+        msg
+    );
+    console.log("Signed tx");
     const result = await broadcastTransaction(client, signedTransaction);
+    console.log("Broadcasting TX");
     if (isTxError(result)) {
         console.error("ERROR: ");
         console.error(result);
@@ -37,16 +56,24 @@ export async function uploadContract(client, wallet, filepath) {
     try {
         const contract = fs.readFileSync(filepath, "base64");
         const uploadMsg = new MsgStoreCode(wallet.key.accAddress, contract);
+        console.log("Created msg");
         let result: any = await makeTransaction(client, wallet, uploadMsg);
         return Number(result.logs[0].eventsByType.store_code.code_id[0]);
     } catch (e) {
-        console.error("Upload Error:");
+        console.error(`${filepath} Upload Error:`);
         console.error(e);
     }
 }
 
 export async function queryContract(terra, contractAddress, query) {
-    return await terra.wasm.contractQuery(contractAddress, query);
+    try {
+        return await terra.wasm.contractQuery(contractAddress, query);
+    } catch (e) {
+        console.error(`Query Error:`);
+        console.error(e);
+    }
+
+    
 }
 
 export async function instantiateContract(

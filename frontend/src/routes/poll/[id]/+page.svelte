@@ -18,6 +18,7 @@
 	<div class="poll__side">
 		<div class="poll__side-actions">
 			<button class="btn">Vote</button>
+			<button class="btn btn-danger">Close Poll</button>
 		</div>
 		<div class="poll__side-info">
 			<ul>

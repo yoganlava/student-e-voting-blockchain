@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { getDatabase } from "./db";
 import { MixnetMessage, MixnetMessageType } from "./types";
 import { Database } from "sqlite";
-import { PrivateKey, decrypt } from "eciesjs";
+import { PrivateKey, decrypt, encrypt } from "eciesjs";
 
 dotenv.config();
 
@@ -69,7 +69,7 @@ ws.on("message", async (data) => {
                 console.log(
                     `[MixNet Node] Create key message recieved - Poll ID: ${msg.data.poll_id}`
                 );
-                ws.send(await getAndCommitKey(db, msg.data.poll_id));
+                await getAndCommitKey(db, msg.data.poll_id);
                 break;
             case MixnetMessageType.DECRYPT: {
                 console.log(
@@ -94,12 +94,46 @@ ws.on("message", async (data) => {
 
                 break;
             }
-            default:
-                ws.send(
-                    JSON.stringify({
-                        error: "Invalid msg type",
-                    })
+            case MixnetMessageType.ENCRYPT: {
+                console.log(
+                    `[MixNet Node] Encrypt message recieved - Poll ID: ${msg.data.poll_id}`
                 );
+                const keypair = await getKeypair(db, msg.data.poll_id);
+
+                if (!keypair) {
+                    // TODO: proper errors
+                    // ws.send(
+                    //     JSON.stringify({
+                    //         error: "Invalid poll id",
+                    //     })
+                    // );
+                    break;
+                }
+
+
+                ws.send(JSON.stringify(
+                    {
+                        // decrypted_message: encrypt(keypair.public_key, msg.data.vote)
+                        // TODO: make type
+                        type: "encryption_result",
+                        data: {
+                            ...msg.data,
+                            vote: encrypt(keypair.public_key, msg.data.vote)
+                        },
+                        callback: msg.callback
+                    }
+                ));
+
+                break;
+            }
+            default:
+                console.log(`Invalid msg type: ${msg.type}`);
+                console.log(msg);
+                // ws.send(
+                //     JSON.stringify({
+                //         error: `Invalid msg type: ${msg.type}`,
+                //     })
+                // );
         }
     } catch (e) {
         console.log(e);

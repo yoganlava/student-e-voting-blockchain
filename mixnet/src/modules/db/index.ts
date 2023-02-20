@@ -4,7 +4,7 @@ import { Database, open } from 'sqlite'
 // key_order stores which nodes to send votes to and in which order
 // reverse the ordering to get the decryption order
 const migration = `
-CREATE TABLE IF NOT EXISTS key_order (poll_id int, node_id varchar, index int);
+CREATE TABLE IF NOT EXISTS key_order (poll_id int, node_id varchar, node_index int);
 `
 
 let _db: Database;

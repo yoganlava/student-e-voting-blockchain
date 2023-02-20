@@ -7,4 +7,5 @@ export enum MixnetNodeMsgType {
 export interface MixnetNodeMsg {
     type: MixnetNodeMsgType;
     data: any;
+    callback?: string;
 }

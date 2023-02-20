@@ -10,12 +10,21 @@ import {
 import { executeContractMessage, queryContract } from "../terra";
 import { getDatabase } from "../db";
 import { Worker } from "worker_threads";
+import { v4 as uuidv4 } from "uuid";
 
 const path = "/mixnet";
 
+// list of call backs when sending encrypt message back to user;
+// {
+// id: fn
+// }
+let websocketCallback: {
+    [key: string]: Function;
+} = {};
+
 //TODO: Make type
 async function handleQueueMessage(message: any) {
-    const nodeID = message.nodes_left.shift();
+    const nodeID = message.data.nodes_left.shift();
 
     if (!nodeID) {
         // TODO: handle
@@ -29,6 +38,9 @@ async function handleQueueMessage(message: any) {
         return;
     }
 
+    console.log("Sending: ");
+    console.log(message);
+    console.log(`to ${nodeID}`);
     connectedNode.socket.send(JSON.stringify(message));
 }
 
@@ -38,29 +50,92 @@ export default async function routes(
 ) {
     console.log(`Registered ${path}`);
 
-    const queueWorker = new Worker("./src/workers/queueWorker.ts");
+    const queueWorker = new Worker("./src/workers/queueWorker.js");
     queueWorker.on("message", handleQueueMessage);
+
+    fastify.post(path + "/encrypt", async (req, res) => {
+        try {
+            // cba to infer type
+            const pollID = parseInt((req.body as any).pollID, 10);
+
+            // // TODO: make type
+            // const pollRes: any = await queryContract({
+            //     Poll: {
+            //         poll_id: pollID,
+            //     },
+            // });
+
+            // if (pollRes.error) {
+            //     res.send({
+            //         error: "Invalid poll",
+            //     });
+            // }
+
+            const db = await getDatabase();
+
+            const keyOrder = await db.all(
+                "SELECT * FROM key_order where poll_id = ? ORDER BY node_id ASC",
+                pollID
+            );
+
+            //TODO send encrypt message
+
+            const id = uuidv4();
+
+            const finishPromise = new Promise((resolve) => {
+                websocketCallback[id] = (vote: string) => {
+                    console.log(`Executed callback: ${id}`);
+    
+                    delete websocketCallback[id];
+                    resolve(vote);
+                };
+            });
+
+            queueWorker.postMessage({
+                type: "encrypt",
+                data: {
+                    poll_id: pollID,
+                    vote: (req.body as any).vote,
+                    nodes_left: keyOrder.map((o) => o.node_id),
+                },
+                callback: id,
+            });
+
+
+            res.send(JSON.stringify(
+                {
+                    encryptedVote: await finishPromise
+                }
+            ))
+        } catch (e) {
+            console.log(e);
+            res.send({
+                error: "Internal Server error",
+            });
+        }
+    });
 
     fastify.post(path + "/notify/create/:pollID", async (req, res) => {
         try {
             // cba to infer type
             const pollID = parseInt((req.params as any).pollID);
 
-            // TODO: make type
-            const pollRes: any = await queryContract({
-                Poll: {
-                    poll_id: pollID,
-                },
-            });
+            // // TODO: make type
+            // const pollRes: any = await queryContract({
+            //     Poll: {
+            //         poll_id: pollID,
+            //     },
+            // });
 
-            if (pollRes.error) {
-                res.send({
-                    error: "Invalid poll",
-                });
-            }
+            // if (pollRes.error) {
+            //     res.send({
+            //         error: "Invalid poll",
+            //     });
+            // }
 
             await broadcastKeyCreateToNodes(await getDatabase(), pollID);
         } catch (e) {
+            console.log(e);
             res.send({
                 error: "Internal Server error",
             });
@@ -99,16 +174,15 @@ export default async function routes(
                 pollID
             );
 
-            queueWorker.postMessage(
-                {
-                    type: "decrypt",
-                    data: {
-                        poll_id: pollID,
-                        votes: votesRes.encrypted_votes,
-                        nodes_left: keyOrder.map((o) => o.node_id),
-                    }
-                }
-            );
+            queueWorker.postMessage({
+                type: "decrypt",
+                data: {
+                    poll_id: pollID,
+                    votes: votesRes.encrypted_votes,
+                    nodes_left: keyOrder.map((o) => o.node_id),
+                },
+            });
+            
         } catch (e) {
             res.send({
                 error: "Internal Server error",
@@ -128,50 +202,52 @@ export default async function routes(
         conn.socket.on("message", async (message: Buffer) => {
             try {
                 const msg: MixnetNodeMsg = JSON.parse(message.toString());
+                console.log(msg);
                 switch (msg.type) {
                     case MixnetNodeMsgType.REGISTER:
-                        if (!msg.data.id) {
-                            conn.socket.send(
-                                JSON.stringify({
-                                    error: "No id provided",
-                                })
-                            );
-                            return;
-                        }
-                        // addNode(conn);
+                        // if (!msg.data.id) {
+                        //     conn.socket.send(
+                        //         JSON.stringify({
+                        //             error: "No id provided",
+                        //         })
+                        //     );
+                        //     return;
+                        // }
+                        addNode(msg.data.id, conn);
                         fastify.log.info(
                             `[MixNet] MixNet Node registered - Node ID: ${msg.data.id}`
-                        );
-                        conn.socket.send(
-                            JSON.stringify({
-                                message: "Node registered",
-                            })
                         );
                         break;
                     // Result from encryption
                     case MixnetNodeMsgType.ENCRYPTION_RESULT:
-                        if (!msg.data.id) {
-                            conn.socket.send(
-                                JSON.stringify({
-                                    error: "No id provided",
-                                })
-                            );
-                            return;
-                        }
+                        console.log(`[MixNet] Got encryption result from node`);
+                        // if (!msg.data.id) {
+                        //     // conn.socket.send(
+                        //     //     JSON.stringify({
+                        //     //         error: "No id provided",
+                        //     //     })
+                        //     // );
+                        //     return;
+                        // }
 
                         if (!msg.data.nodes_left.length) {
                             // TODO: send back data
+                            if (msg.callback) websocketCallback[msg.callback](msg.data.vote);
+                            return;
                         }
 
-                        queueWorker.postMessage(msg);
+                        queueWorker.postMessage({
+                            ...msg,
+                            type: "encrypt",
+                        });
                         break;
                     case MixnetNodeMsgType.DECRYPTION_RESULT:
                         if (!msg.data.id) {
-                            conn.socket.send(
-                                JSON.stringify({
-                                    error: "No id provided",
-                                })
-                            );
+                            // conn.socket.send(
+                            //     JSON.stringify({
+                            //         error: "No id provided",
+                            //     })
+                            // );
                             return;
                         }
 
@@ -180,8 +256,8 @@ export default async function routes(
                             await executeContractMessage({
                                 ExecutePushUnMixedVotes: {
                                     poll_id: msg.data.poll_id,
-                                    votes: msg.data.votes
-                                }
+                                    votes: msg.data.votes,
+                                },
                             });
                             return;
                         }
@@ -189,11 +265,15 @@ export default async function routes(
                         queueWorker.postMessage(msg.data);
                         break;
                     default:
-                        conn.socket.send(
-                            JSON.stringify({
-                                error: "Invalid msg type",
-                            })
-                        );
+                        console.log(`Invalid msg type: ${msg.type}`);
+                        console.log(msg);
+                    // TODO: proper errors
+
+                    // conn.socket.send(
+                    //     JSON.stringify({
+                    //         error: "Invalid msg type",
+                    //     })
+                    // );
                 }
             } catch (e) {
                 console.log(e);
@@ -207,6 +287,7 @@ export default async function routes(
 
         conn.socket.on("disconnect", () => {
             fastify.log.info("[MixNet] MixNet Node disconnected");
+            // TODO
             // removeNode(conn);
         });
     });

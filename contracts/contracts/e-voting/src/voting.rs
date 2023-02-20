@@ -20,12 +20,14 @@ use std::str::FromStr;
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let state = Config {
         voting_token_addr: deps.api.addr_validate(&msg.voting_token_addr)?,
-        admins: vec![],
+        admins: vec![
+            info.sender
+        ],
         mixnet_addr: deps.api.addr_validate(&msg.mixnet_addr)?
     };
 
@@ -135,7 +137,7 @@ fn execute_register_voter(
 
     VOTERS.save(storage, voter.addr.clone(), &voter)?;
 
-    Ok(Response::new().add_attribute("action", "register_voter").ad)
+    Ok(Response::new().add_attribute("action", "register_voter"))
 }
 
 fn execute_change_config(

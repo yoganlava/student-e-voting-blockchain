@@ -1,26 +1,52 @@
 * {
-    padding: 0;
+	padding: 0;
 	margin: 0;
-    font-family: "Inter";
+	font-family: 'Inter';
 }
 
 .page-container {
-    > div {
-        margin-top: 1rem;
-    }
+	> div {
+		margin-top: 1rem;
+	}
 }
 
-input[type=text] {
-    border: 2px solid black;
-    border-radius: 0.5rem;
-    padding: 0.2rem;
+
+input {
+	&[type='text'], &[type='number'] {
+		border: 2px solid black;
+		border-radius: 0.5rem;
+		padding: 0.2rem;
+	}
+}
+
+textarea {
+	border: 2px solid black;
+	border-radius: 0.5rem;
+	padding: 0.2rem;
 }
 
 .btn {
-    appearance: none;
-    background-color: black;
-    color: white;
-    border-radius: 0.2rem;
-    padding: 0.5rem;
-    cursor: pointer;
+	appearance: none;
+	border: none;
+
+	background-color: black;
+	color: white;
+	border-radius: 0.2rem;
+	padding: 0.5rem;
+	cursor: pointer;
+
+	&:hover {
+		background-color: rgb(50, 50, 50);
+		border-color: rgb(50, 50, 50);
+	}
+
+	&-danger {
+		background-color: #dc3545;
+		border-color: #dc3545;
+		&:hover {
+			background-color: #c02d3c;
+			border-color: #c02d3c;
+		}
+	}
 }
+

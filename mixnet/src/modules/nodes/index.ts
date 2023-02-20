@@ -5,6 +5,7 @@ let _connectedNodes: Map<string, SocketStream>;
 
 export function initialiseNodes(): void {
     if (!_connectedNodes) _connectedNodes = new Map<string, SocketStream>();
+    console.log("Initialised Nodes");
 }
 
 export function addNode(connID: string, conn: SocketStream): void {
@@ -61,12 +62,14 @@ export async function broadcastKeyCreateToNodes(
         shuffledNodes[i][1].socket.send(
             JSON.stringify({
                 type: "create_key",
-                poll_id: pollID,
+                data: {
+                    poll_id: pollID,
+                },
             })
         );
 
         await db.run(
-            "INSERT INTO key_order (poll_id, node_id, index)",
+            "INSERT INTO key_order (poll_id, node_id, node_index) values (?, ?, ?)",
             pollID,
             shuffledNodes[i][0],
             i
