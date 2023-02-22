@@ -3,7 +3,7 @@
 mod error;
 pub mod msg;
 pub mod state;
-pub mod utils;
+// pub mod utils;
 pub mod voting;
 pub mod response;
 #[cfg(test)]

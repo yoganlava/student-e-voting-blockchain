@@ -5,7 +5,7 @@ use cosmwasm_schema::{cw_serde};
 use cosmwasm_schema::serde::{Serialize, Deserialize};
 use cosmwasm_std::{Addr, BlockInfo, Decimal, Order, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
-use serde_big_array::BigArray;
+// use serde_big_array::BigArray;
 
 #[cw_serde]
 pub struct Config {
@@ -33,9 +33,9 @@ pub enum PollKind {
 #[cw_serde]
 pub enum PollStatus {
     Active,
+    Pending,
     Passed,
-    Rejected,
-    Canceled
+    Rejected
 }
 
 #[cw_serde]
@@ -82,11 +82,11 @@ pub struct Poll {
     pub end_height: Option<u64>,
     pub title: String,
     pub description: String,
-    // sent to users to encrypt vote
-    #[serde(with = "BigArray")]
-    pub public_key: [u8; 65],
-    // used to decrypt vote
-    pub secret_key: [u8; 32],
+    // // sent to users to encrypt vote
+    // #[serde(with = "BigArray")]
+    // pub public_key: [u8; 65],
+    // // used to decrypt vote
+    // pub secret_key: [u8; 32],
     pub votes: PollVotes
 }
 
@@ -135,6 +135,11 @@ impl Poll {
               votes_needed
             } => self.votes.up_votes >= votes_needed
         };
+        false
+    }
+
+    pub fn has_rejected(&self, block: &BlockInfo, storage: &dyn Storage) -> bool {
+        // TODO
         false
     }
 }

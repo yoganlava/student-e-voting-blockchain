@@ -1,7 +1,6 @@
 use cosmwasm_std::{OverflowError, StdError};
-// use cosmwasm_std::{OverflowError, StdError, Uint128};
 use thiserror::Error;
-//
+
 #[derive(Error, Debug)]
 pub enum ContractError {
     #[error("{0}")]

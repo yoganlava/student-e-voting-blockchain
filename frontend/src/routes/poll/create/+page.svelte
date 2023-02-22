@@ -3,7 +3,7 @@
 let form = {};
 
 function createPoll() {
-    
+
 } 
 
 </script>
@@ -19,7 +19,11 @@ function createPoll() {
 			<textarea class="create-poll-container__element-textarea"/>
 		</div>
         <div class="create-poll-container__element">
-            Poll Type
+            <p>End Time</p>
+            <input type="date">
+        </div> 
+        <div class="create-poll-container__element">
+            <p>Poll Type</p>
             <label>
                 <input type="radio" name="choice" checked disabled/>
                 Yes/No
@@ -48,6 +52,11 @@ function createPoll() {
 
 		&__element {
 			margin: auto;
+
+            > p::after {
+                content: "*";
+                color: red;
+            }
 
             &-textarea {
                 width: 80%;

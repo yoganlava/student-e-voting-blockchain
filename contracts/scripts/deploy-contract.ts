@@ -15,8 +15,6 @@ export default async (tokenAddress: string) => {
         })
     );
 
-    // const terra = new LocalTerra();
-    // const wallet = terra.wallets.test1;
 
     const evotingCodeID = await uploadContract(
         terra,

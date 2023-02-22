@@ -12,7 +12,7 @@
 
 
 input {
-	&[type='text'], &[type='number'] {
+	&[type='text'], &[type='number'], &[type='date'] {
 		border: 2px solid black;
 		border-radius: 0.5rem;
 		padding: 0.2rem;

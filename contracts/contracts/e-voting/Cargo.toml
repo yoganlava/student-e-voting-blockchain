@@ -33,8 +33,6 @@ cw-storage-plus = "0.16.0"
 thiserror = "1.0.31"
 rand = "0.8"
 serde = "1.0"
-ecies = {version = "0.2.3", default-features = false, features = ["pure"]}
 hex = "0.4.3"
-serde-big-array = "0.4.1"
 
 [dev-dependencies]

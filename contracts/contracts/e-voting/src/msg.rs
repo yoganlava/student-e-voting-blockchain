@@ -14,7 +14,7 @@ pub enum ClosePollKind {
     Rejected
 }
 
-impl ToString for ClosePollKind{
+impl ToString for ClosePollKind {
     fn to_string(&self) -> String {
         match self {
             ClosePollKind::Passed => {
