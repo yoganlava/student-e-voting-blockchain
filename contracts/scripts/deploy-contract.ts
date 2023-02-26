@@ -24,7 +24,7 @@ export default async (tokenAddress: string) => {
 
     console.log("E-voting code ID:", evotingCodeID);
 
-    await sleep(1000);
+    await sleep(1500);
 
     const contractAddress = await instantiateContract(
         terra,

@@ -3,18 +3,14 @@ use std::ops::Add;
 use std::str::FromStr;
 use cosmwasm_schema::{cw_serde};
 use cosmwasm_schema::serde::{Serialize, Deserialize};
-use cosmwasm_std::{Addr, BlockInfo, Decimal, Order, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, BlockInfo, Decimal, Order, StdResult, Storage, Timestamp, Uint128};
 use cw_storage_plus::{Item, Map};
-// use serde_big_array::BigArray;
 
 #[cw_serde]
 pub struct Config {
     pub voting_token_addr: Addr,
     pub admins: Vec<Addr>,
     pub mixnet_addr: Addr
-    // pub owner: Vec<Addr>,
-    // pub poll_count: u64,
-    // pub staked_tokens: Uint128
 }
 
 #[cw_serde]
@@ -78,19 +74,18 @@ pub struct Poll {
     pub kind: PollKind,
     pub status: PollStatus,
     pub threshold_percentage: Option<u8>,
-    pub start_height: u64,
-    pub end_height: Option<u64>,
+    pub start_time: Timestamp,
+    pub end_time: Timestamp,
     pub title: String,
     pub description: String,
-    // // sent to users to encrypt vote
-    // #[serde(with = "BigArray")]
-    // pub public_key: [u8; 65],
-    // // used to decrypt vote
-    // pub secret_key: [u8; 32],
     pub votes: PollVotes
 }
 
 impl Poll {
+    pub fn has_expired(&self, block: &BlockInfo) -> bool {
+        block.time >= self.end_time
+    }
+
     pub fn current_status(&self, block: &BlockInfo, storage: &dyn Storage) -> PollStatus {
         if self.status == PollStatus::Active {
             if self.has_passed(block, storage) {
@@ -102,10 +97,6 @@ impl Poll {
         }
 
         self.status.clone()
-    }
-
-    pub fn has_expired(&self, block: &BlockInfo) -> bool {
-        self.end_height.unwrap_or_default() >= block.height
     }
 
     pub fn update_status(&mut self, block: &BlockInfo, storage: &dyn Storage) {
@@ -130,17 +121,40 @@ impl Poll {
 
                 return up_vote_percentage >= percentage_needed;
             }
-            // TODO: Maybe add Considering for PollStatus?
             PollKind::Petition {
               votes_needed
             } => self.votes.up_votes >= votes_needed
-        };
-        false
+        }
     }
 
-    pub fn has_rejected(&self, block: &BlockInfo, storage: &dyn Storage) -> bool {
-        // TODO
-        false
+    pub fn tally_votes(&mut self) {
+       self.votes.list = self.votes.clone().list.iter().map(|item| {
+            // TODO make less dirty
+            let mut vote = item.to_owned();
+
+            if vote.decrypted_vote_kind.is_none() {
+                return vote
+            }
+
+            let strings: Vec<&str> = vote.encrypted_vote.split(".").collect();
+            let decrypted_vote_kind = VoteKind::from_str(strings[0]).unwrap();
+
+            match decrypted_vote_kind {
+                VoteKind::UpVote => {
+                    self.votes.up_votes += 1;
+                }
+                VoteKind::DownVote => {
+                    // TODO CHECK POLL KIND AND IF THE VOTES ARE VALID
+                    self.votes.down_votes += 1;
+                }
+            }
+
+            vote.decrypted_vote_kind = Some(decrypted_vote_kind);
+            vote.tracker = Some(u64::from_str(strings[1]).unwrap());
+
+            // save vote
+            vote
+        }).collect();
     }
 }
 

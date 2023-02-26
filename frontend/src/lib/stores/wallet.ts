@@ -2,9 +2,11 @@ import { writable, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { getController, initController } from '../walletController';
 import { createLCDClient, type ConnectedWallet } from '@terra-money/wallet-controller';
-import { PUBLIC_CONTRACT_ADDR } from "$env/static/public";
+import { PUBLIC_CONTRACT_ADDR } from '$env/static/public';
 // import {  Fee, MsgSend } from '@terra-money/terra.js';
-import { Fee, MsgSend, Wallet } from '@terra-money/terra.js';
+import { Fee, MsgExecuteContract, MsgSend, Wallet } from '@terra-money/terra.js';
+import { voterStore } from './voter';
+import { getValueFromObservable } from '$lib/utils';
 
 class WalletStore {
 	state = {
@@ -12,13 +14,13 @@ class WalletStore {
 		controller: null
 	} as any;
 	walletState = writable(null);
-	connectedWallet: ConnectedWallet | null;;
+	connectedWallet: ConnectedWallet | null;
 	LCDClient = createLCDClient({
 		network: {
 			name: 'testnet',
-			chainID: 'bombay-12',
-			lcd: 'https://bombay-lcd.terra.dev',
-            walletconnectID: 0
+			chainID: 'pisco-1',
+			lcd: 'https://pisco-lcd.terra.dev',
+			walletconnectID: 0
 		}
 	});
 
@@ -42,25 +44,42 @@ class WalletStore {
 					});
 				getController()
 					.connectedWallet()
-					.subscribe((_wallet) => {
+					.subscribe(async (_wallet) => {
 						this.connectedWallet = _wallet;
+						console.log(this.connectedWallet);
+						if (this.connectedWallet) await this.refreshVoterStats();
+						// reset if disconnect
 					});
 			});
 		}
 	}
 
-	public queryContract(arg) {
-		return this.LCDClient.wasm.contractQuery(this.contractAddress, { query: { ...arg } });
+	private async refreshVoterStats() {
+		const voterInfo = await this.queryContract({
+			voter_info: {
+				addr: this.connectedWallet.walletAddress
+			}
+		});
+
+		const isAdmin =
+			(
+				(await this.queryContract({
+					is_admin: {
+						addr: this.connectedWallet.walletAddress
+					}
+				})) as any
+			).is_admin ?? false;
+		voterStore.voterInfo.set(voterInfo);
+		voterStore.isAdmin.set(isAdmin);
 	}
 
-	public executeContract(amount) {
-		return this.connectedWallet.post({
-			fee: new Fee(1000000, '200000uusd'),
-			msgs: [
-				new MsgSend(this.connectedWallet.walletAddress, this.contractAddress, {
-					uusd: amount
-				})
-			]
+	public async queryContract(query) {
+		return this.LCDClient.wasm.contractQuery(this.contractAddress, query).catch(() => undefined);
+	}
+
+	public async executeContract(msg) {
+		await this.connectedWallet.post({
+			msgs: [new MsgExecuteContract(this.connectedWallet.walletAddress, this.contractAddress, msg)]
 		});
 	}
 }

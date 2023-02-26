@@ -12,21 +12,18 @@ pub enum ContractError {
     #[error("Poll does not exist")]
     PollNotExist {},
 
+    #[error("Poll not active")]
+    PollNotActive {},
+
     #[error("Voter does not exist")]
     VoterNotExist {},
 
     #[error("Voter already exists")]
     VoterAlreadyExist {},
 
-    #[error("Poll not active")]
-    PollNotActive {},
-
     #[error("Already Voted")]
     AlreadyVoted {},
 
     #[error("Invalid Authorisation")]
-    InvalidAuthorisation {},
-
-    #[error("Inactive Poll")]
-    InactivePoll {}
+    InvalidAuthorisation {}
 }

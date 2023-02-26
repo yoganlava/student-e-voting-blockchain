@@ -1,5 +1,5 @@
 use crate::error::ContractError;
-use crate::msg::{ClosePollKind, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::response::{IsAdminResponse, PollResponse, PollVoteCountResponse, PollsResponse};
 use crate::state::PollStatus::{Active, Pending};
 use crate::state::{
@@ -39,15 +39,14 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {
+    return match msg {
         ExecuteMsg::CreatePoll {
             title,
             kind,
             description,
-            start_height,
-            end_height,
-        } => {
-            return execute_create_poll(
+            start_time,
+            end_time,
+        } => execute_create_poll(
                 deps.storage,
                 Poll {
                     id: 0,
@@ -55,8 +54,8 @@ pub fn execute(
                     kind,
                     status: PollStatus::Active,
                     threshold_percentage: None,
-                    start_height,
-                    end_height,
+                    start_time: start_time.unwrap_or(env.block.time),
+                    end_time,
                     title,
                     description,
                     votes: PollVotes {
@@ -66,13 +65,11 @@ pub fn execute(
                         list: vec![]
                     }
                 }
-            )
-        }
+            ),
         ExecuteMsg::CastVote {
             poll_id,
             encrypted_vote,
-        } => {
-            return execute_cast_vote(
+        } => execute_cast_vote(
                 deps.storage,
                 PollVote {
                     voter_addr: info.sender,
@@ -82,28 +79,52 @@ pub fn execute(
                     tracker: None,
                 },
                 &env.block,
-            )
-        }
+            ),
         // TODO MAKE AND THEN START FRONTEND
         ExecuteMsg::RegisterVoter {
             name,
             email,
             student_code,
-        } => {
-            return execute_register_voter(deps.storage, Voter {
+        } => execute_register_voter(deps.storage, Voter {
                 name,
                 email,
                 student_code,
                 addr: info.sender
-            })
-        }
+            }),
         // Veto close
-        ExecuteMsg::ClosePoll { poll_id, kind } => {
-            return execute_close_poll(deps.storage, poll_id, kind, env.block,  info.sender)
-        }
-        ExecuteMsg::ChangeConfig { .. } => {}
+        ExecuteMsg::ChangeConfig { config } => execute_change_config(deps.storage, config, info.sender),
+        ExecuteMsg::PushUnmixedVotes { poll_id, votes } => execute_push_unmixed_votes(deps.storage, poll_id, votes, info.sender, &env.block),
+        // Prematurely close poll for tallying before end height is reached
+        ExecuteMsg::ClosePoll { poll_id } => execute_close_poll(deps.storage, poll_id, info.sender)
     }
-    Ok(Response::default())
+}
+
+fn execute_close_poll(
+    storage: &mut dyn Storage,
+    poll_id: u64,
+    sender: Addr
+) -> Result<Response, ContractError> {
+    let mut poll = match POLLS.may_load(storage, poll_id)? {
+        Some(poll) => Some(poll),
+        None => return Err(ContractError::PollNotExist {}),
+    }.unwrap();
+
+    if poll.creator != sender {
+        return Err(ContractError::InvalidAuthorisation {});
+    }
+
+    if poll.status == PollStatus::Active {
+        return Err(ContractError::PollNotActive {})
+    }
+
+    poll.status = PollStatus::Pending;
+
+    POLLS.save(storage, poll_id, &poll);
+
+    Ok(Response::new()
+        .add_attribute("action", "close_poll")
+        .add_attribute("poll_id", poll_id.to_string())
+    )
 }
 
 fn execute_register_voter(
@@ -137,16 +158,15 @@ fn execute_register_voter(
 fn execute_change_config(
     storage: &mut dyn Storage,
     config: Config,
-    addr: Addr,
+    sender: Addr,
 ) -> Result<Response, ContractError> {
-    let current_config = CONFIG.load(storage).unwrap();
-    if !current_config.admins.contains(&addr) {
+    if !is_admin(storage, sender) {
         return Err(ContractError::InvalidAuthorisation {});
     }
 
     CONFIG.save(storage, &config).unwrap();
 
-    Ok(Response::default())
+    Ok(Response::new().add_attribute("action", "change_config"))
 }
 
 fn execute_create_poll(
@@ -197,7 +217,6 @@ fn execute_cast_vote(
         return Err(ContractError::AlreadyVoted {});
     }
 
-
     // add vote to poll
     poll.votes.total += 1;
     poll.votes.list.push(PollVote {
@@ -211,105 +230,22 @@ fn execute_cast_vote(
     POLLS.save(storage, poll.id, &poll).unwrap();
 
     Ok(Response::new()
-        .add_attribute("action", "vote")
-        .add_attribute("tracker", tracker))
+        .add_attribute("action", "vote"))
 }
 
-fn execute_push_unmixed_votes(storage: &mut dyn Storage, poll_id: u64, votes: Vec<PollVote>) -> Result<Response, ContractError> {
+fn execute_push_unmixed_votes(storage: &mut dyn Storage, poll_id: u64, votes: Vec<PollVote>, sender: Addr, block: &BlockInfo) -> Result<Response, ContractError> {
+    if !is_mixnet(storage, sender) {
+        return Err(ContractError::InvalidAuthorisation {})
+    }
+
     let mut poll = match POLLS.may_load(storage, poll_id)? {
         Some(poll) => Some(poll),
         None => return Err(ContractError::PollNotExist {}),
     }.unwrap();
-
-    if e
 
     poll.votes.list = votes;
-    POLLS.save(storage, poll.id, &poll).unwrap();
 
-    Ok(Response::new()
-        .add_attribute("push_unmixed_votes", "vote")
-        .add_attribute("poll_id", poll_id.to_string()))
-}
-
-fn tally_votes(storage: &mut dyn Storage, poll_id: u64) -> Result<(u64, u64), ContractError> {
-//     TODO
-    let mut poll = match POLLS.may_load(storage, poll_id)? {
-        Some(poll) => Some(poll),
-        None => return Err(ContractError::PollNotExist {}),
-    }.unwrap();
-
-    let mut up_votes = 0u64;
-    let mut down_votes = 0u64;
-
-    poll.votes.list = poll.votes.list.iter().map(|item| {
-        // TODO make less dirty
-        let mut vote = item.to_owned();
-
-        if vote.decrypted_vote_kind.is_none() {
-            return vote
-        }
-
-        let strings: Vec<&str> = vote.encrypted_vote.clone().split(".").collect();
-        let decrypted_vote_kind = VoteKind::from_str(strings[0]).unwrap();
-
-        match decrypted_vote_kind {
-            VoteKind::UpVote => {
-                up_votes += 1;
-            }
-            VoteKind::DownVote => {
-                // TODO CHECK POLL KIND AND IF THE VOTES ARE VALID
-                down_votes += 1;
-            }
-        }
-
-        vote.decrypted_vote_kind = Some(decrypted_vote_kind);
-        vote.tracker = Some(u64::from_str(strings[1]).unwrap());
-
-        // save vote
-        vote
-    }).collect();
-
-    POLLS.save(storage, poll.id, &poll).unwrap();
-
-    Ok((up_votes, down_votes))
-}
-
-fn is_admin(storage: &dyn Storage, addr: Addr) -> bool {
-    CONFIG.load(storage).unwrap().admins.contains(&addr)
-}
-
-fn execute_close_poll(
-    storage: &mut dyn Storage,
-    poll_id: u64,
-    kind: ClosePollKind,
-    block: &BlockInfo,
-    addr: Addr,
-) -> Result<Response, ContractError> {
-    if !is_admin(storage, addr) {
-        return Err(ContractError::InvalidAuthorisation {});
-    }
-
-    // TODO: check If already passed/closed etc
-
-    let mut poll = match POLLS.may_load(storage, poll_id)? {
-        Some(poll) => Some(poll),
-        None => return Err(ContractError::PollNotExist {}),
-    }
-    .unwrap();
-
-    if poll.status != Active {
-        return Err(ContractError::InactivePoll {});
-    }
-
-    poll.status = match kind {
-        ClosePollKind::Passed => PollStatus::Passed,
-        ClosePollKind::Rejected => PollStatus::Rejected,
-    };
-
-    (poll.votes.up_votes, poll.votes.down_votes) = tally_votes(
-        storage,
-        poll_id,
-    ).unwrap();
+    poll.tally_votes();
 
     // update poll state after tallying
     poll.update_status(block, storage);
@@ -317,14 +253,24 @@ fn execute_close_poll(
     POLLS.save(storage, poll.id, &poll).unwrap();
 
     Ok(Response::new()
-        .add_attribute("action", "close")
-        .add_attribute("status", kind.to_string()))
+        .add_attribute("push_unmixed_votes", "vote")
+        .add_attribute("poll_id", poll_id.to_string()))
+}
+
+fn is_admin(storage: &dyn Storage, addr: Addr) -> bool {
+    CONFIG.load(storage).unwrap().admins.contains(&addr)
+}
+
+fn is_mixnet(storage: &dyn Storage, addr: Addr) -> bool {
+    CONFIG.load(storage).unwrap().mixnet_addr == addr
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Poll { poll_id } => query_poll(deps.storage, poll_id),
+        // TODO: implement seeing polls that are not active
+        // TODO: maybe a "not" modifier?
         QueryMsg::Polls { status } => query_polls(deps.storage, status, &env.block),
         QueryMsg::VoterInfo { addr } => {
             to_binary(&VOTERS.load(deps.storage, deps.api.addr_validate(&addr)?)?)
@@ -332,8 +278,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::IsAdmin { addr } => to_binary(&IsAdminResponse {
             is_admin: is_admin(deps.storage, deps.api.addr_validate(&addr)?),
         }),
-        // Query number of votes in poll
-        QueryMsg::PollVotes { poll_id } => query_poll_vote_count(deps.storage, poll_id),
+        QueryMsg::PollVotes { poll_id } => query_poll_votes(deps.storage, poll_id),
     }
 }
 
@@ -345,15 +290,15 @@ fn query_poll(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
     .unwrap();
 
     to_binary(&PollResponse {
+        id: poll.id,
         creator: poll.creator,
         kind: poll.kind,
         status: poll.status,
         threshold_percentage: poll.threshold_percentage,
-        start_height: poll.start_height,
-        end_height: poll.end_height,
+        start_time: poll.start_time,
+        end_time: poll.end_time,
         title: poll.title,
         description: poll.description,
-        // public_key: poll.public_key,
     })
 }
 
@@ -362,30 +307,28 @@ fn query_polls(storage: &dyn Storage, status: PollStatus, block: &BlockInfo) -> 
         polls: POLLS
             .range(storage, None, None, cosmwasm_std::Order::Ascending)
             .filter(|item| {
-                let (_, mut poll) = item.as_ref().unwrap();
-                let resolved_status = if poll.status == PollStatus::Active && poll.has_expired(block) { PollStatus::Pending } else { poll.status };
+                let (_, poll) = item.clone().as_ref().unwrap();
+                let resolved_status = if poll.status == PollStatus::Active && poll.has_expired(block) { PollStatus::Pending } else { poll.status.clone() };
                 resolved_status == status
             })
             .map(|item| {
                 let (_, poll) = item.unwrap();
                 PollResponse {
-                    creator: poll.creator,
-                    kind: poll.kind,
+                    id: poll.id,
+                    creator: poll.creator.clone(),
+                    kind: poll.kind.clone(),
                     status: if poll.status == PollStatus::Active && poll.has_expired(block) { PollStatus::Pending } else { poll.status },
                     threshold_percentage: poll.threshold_percentage,
-                    start_height: poll.start_height,
-                    end_height: poll.end_height,
+                    start_time: poll.start_time,
+                    end_time: poll.end_time,
                     title: poll.title,
                     description: poll.description,
-                    // public_key: poll.public_key,
                 }
             })
             .collect::<Vec<PollResponse>>(),
     })
 }
 
-fn query_poll_vote_count(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
-    to_binary(&PollVoteCountResponse {
-        count: POLLS.load(storage, poll_id)?.votes,
-    })
+fn query_poll_votes(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
+    to_binary(&POLLS.load(storage, poll_id)?.votes.list)
 }

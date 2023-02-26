@@ -1,30 +1,11 @@
 use cosmwasm_schema::{cw_serde};
-use crate::state::{Config, PollKind, PollStatus};
+use cosmwasm_std::Timestamp;
+use crate::state::{Config, PollKind, PollStatus, PollVote, PollVotes};
 
 #[cw_serde]
 pub struct InstantiateMsg {
     pub voting_token_addr: String,
     pub mixnet_addr: String
-}
-
-// Can either Pass or Reject a poll
-#[cw_serde]
-pub enum ClosePollKind {
-    Passed,
-    Rejected
-}
-
-impl ToString for ClosePollKind {
-    fn to_string(&self) -> String {
-        match self {
-            ClosePollKind::Passed => {
-                "Passed".to_string()
-            }
-            ClosePollKind::Rejected => {
-                "Rejected".to_string()
-            }
-        }
-    }
 }
 
 #[cw_serde]
@@ -33,8 +14,8 @@ pub enum ExecuteMsg {
         title: String,
         kind: PollKind,
         description: String,
-        start_height: u64,
-        end_height: Option<u64>,
+        start_time: Option<Timestamp>,
+        end_time: Timestamp,
     },
     CastVote {
         poll_id: u64,
@@ -45,13 +26,15 @@ pub enum ExecuteMsg {
         email: String,
         student_code: u64
     },
-    // For admins to close certain polls
-    ClosePoll {
-        poll_id: u64,
-        kind: ClosePollKind
-    },
     ChangeConfig {
         config: Config
+    },
+    PushUnmixedVotes {
+        poll_id: u64,
+        votes: Vec<PollVote>
+    },
+    ClosePoll {
+        poll_id: u64
     }
 }
 
