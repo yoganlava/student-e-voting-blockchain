@@ -1,19 +1,11 @@
 <script>
-	let poll = {
-		title: 'Should Udeshya be king?',
-		description:
-			'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur sodales ligula in libero. Sed dignissim lacinia nunc.\nCurabitur tortor. Pellentesque nibh. Aenean quam. In scelerisque sem at dolor. Maecenas mattis. Sed convallis tristique sem. Proin ut ligula vel nunc egestas porttitor. Morbi lectus risus, iaculis vel, suscipit quis, luctus non, massa. Fusce ac turpis quis ligula lacinia aliquet. Mauris ipsum. Nulla metus metus, ullamcorper vel, tincidunt sed, euismod in, nibh. ',
-		voters: 1237,
-		department: 'Computer Science',
-		start_date: 'Now',
-		end_date: 'Tomorrow'
-	};
+	export let data;
 </script>
 
 <div class="poll">
-	<div class="poll__title">{poll.title}</div>
+	<div class="poll__title">{data.poll.title}</div>
 	<div class="poll__description">
-		{poll.description}
+		{data.poll.description}
 	</div>
 	<div class="poll__side">
 		<div class="poll__side-actions">
@@ -22,9 +14,8 @@
 		</div>
 		<div class="poll__side-info">
 			<ul>
-				<li>Dept: {poll.department}</li>
-				<li>Start Date: {poll.start_date}</li>
-				<li>End Date: {poll.end_date}</li>
+				<li>Start Date: {data.poll.start_time}</li>
+				<li>End Date: {data.poll.end_time}</li>
 			</ul>
 		</div>
 	</div>

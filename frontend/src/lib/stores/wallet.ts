@@ -2,7 +2,7 @@ import { writable, type Writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { getController, initController } from '../walletController';
 import { createLCDClient, type ConnectedWallet } from '@terra-money/wallet-controller';
-import { PUBLIC_CONTRACT_ADDR } from '$env/static/public';
+import { PUBLIC_CONTRACT_ADDR, PUBLIC_TOKEN_ADDR } from '$env/static/public';
 // import {  Fee, MsgSend } from '@terra-money/terra.js';
 import { Fee, MsgExecuteContract, MsgSend, Wallet } from '@terra-money/terra.js';
 import { voterStore } from './voter';
@@ -25,6 +25,7 @@ class WalletStore {
 	});
 
 	contractAddress: string = PUBLIC_CONTRACT_ADDR;
+	tokenAddress: string = PUBLIC_TOKEN_ADDR;
 
 	constructor(state) {
 		this.state = state;
@@ -46,8 +47,7 @@ class WalletStore {
 					.connectedWallet()
 					.subscribe(async (_wallet) => {
 						this.connectedWallet = _wallet;
-						console.log(this.connectedWallet);
-						if (this.connectedWallet) await this.refreshVoterStats();
+						// if (this.connectedWallet) await this.refreshVoterStats();
 						// reset if disconnect
 					});
 			});
@@ -77,8 +77,20 @@ class WalletStore {
 		return this.LCDClient.wasm.contractQuery(this.contractAddress, query).catch(() => undefined);
 	}
 
+	public async queryBalance() {
+		return (
+			(await this.LCDClient.wasm
+				.contractQuery(this.tokenAddress, {
+					balance: {
+						address: this.connectedWallet.walletAddress
+					}
+				})
+				.catch(() => undefined)) as any
+		).balance;
+	}
+
 	public async executeContract(msg) {
-		await this.connectedWallet.post({
+		return await this.connectedWallet.post({
 			msgs: [new MsgExecuteContract(this.connectedWallet.walletAddress, this.contractAddress, msg)]
 		});
 	}

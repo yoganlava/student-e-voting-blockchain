@@ -1,18 +1,21 @@
 <script>
 	import PollStats from "./PollStats.svelte";
 
-    let poll = {
+    export let poll = {
+        id: 0,
         title: "Should Udeshya be king?",
-        voters: 1237
+        votes: {
+            total: 9999
+        }
     }
 </script>
 
 <div class="poll">
-    <a class="poll__title" href="#">{poll.title}</a>
-    <p class="poll__voter-count">Voters: {poll.voters}</p>
-    <div class="poll__stats">
+    <a class="poll__title" href="/poll/{poll.id}">{poll.title}</a>
+    <p class="poll__voter-count">Voters: {poll.votes?.total}</p>
+    <!-- <div class="poll__stats">
         <PollStats/>
-    </div>
+    </div> -->
 </div>
 
 <style lang="scss">

@@ -35,6 +35,7 @@
 		"node-sass": "^8.0.0",
 		"process": "^0.11.10",
 		"readable-stream": "^4.3.0",
-		"svelte-fa": "^3.0.3"
+		"svelte-fa": "^3.0.3",
+		"svelte-french-toast": "^1.0.3"
 	}
 }

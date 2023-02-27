@@ -1,5 +1,8 @@
 <script>
+	import { PUBLIC_MIXNET_URL } from '$env/static/public';
+	import http from '$lib/http';
 	import { walletStore } from '$lib/stores/wallet';
+	import { getTxLogs, sleep, toastSuccess } from '$lib/utils';
 
 	let form = {
 		title: '',
@@ -23,9 +26,35 @@
 			}
 		};
 
-		await walletStore.executeContract({
+		const response = await walletStore.executeContract({
 			create_poll: formToSend
 		});
+		console.log(response);
+
+		if (response.success) toastSuccess('Poll Created!');
+
+		await sleep(3000);
+
+		const txInfo = await getTxLogs(response.result.txhash);
+
+		console.log(txInfo);
+
+		const createdPollID = parseInt(
+			txInfo.attributes.find((attribute) => attribute.key === 'poll_id').value,
+			10
+		);
+
+		console.log(createdPollID);
+
+		await http(
+			`${PUBLIC_MIXNET_URL}/mixnet/notify/create`,
+			{
+				pollID: createdPollID
+			},
+			'POST'
+		);
+
+		console.log(response);
 	}
 </script>
 

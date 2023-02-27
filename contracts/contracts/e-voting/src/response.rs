@@ -15,6 +15,7 @@ pub struct PollResponse {
     pub end_time: Timestamp,
     pub title: String,
     pub description: String,
+    pub votes: PollVotes
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

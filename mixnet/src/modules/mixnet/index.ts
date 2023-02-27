@@ -85,7 +85,7 @@ export default async function routes(
             const finishPromise = new Promise((resolve) => {
                 websocketCallback[id] = (vote: string) => {
                     console.log(`Executed callback: ${id}`);
-    
+
                     delete websocketCallback[id];
                     resolve(vote);
                 };
@@ -101,12 +101,11 @@ export default async function routes(
                 callback: id,
             });
 
-
-            res.send(JSON.stringify(
-                {
-                    encryptedVote: await finishPromise
-                }
-            ))
+            res.send(
+                JSON.stringify({
+                    encryptedVote: await finishPromise,
+                })
+            );
         } catch (e) {
             console.log(e);
             res.send({
@@ -115,11 +114,11 @@ export default async function routes(
         }
     });
 
-    fastify.post(path + "/notify/create/:pollID", async (req, res) => {
+    // TODO make more secure
+    fastify.post(path + "/notify/create", async (req, res) => {
         try {
-            // cba to infer type
-            const pollID = parseInt((req.params as any).pollID);
-
+            console.log(req.body);
+            console.log(typeof req.body);
             // // TODO: make type
             // const pollRes: any = await queryContract({
             //     Poll: {
@@ -133,7 +132,10 @@ export default async function routes(
             //     });
             // }
 
-            await broadcastKeyCreateToNodes(await getDatabase(), pollID);
+            await broadcastKeyCreateToNodes(
+                await getDatabase(),
+                (req.body as any).pollID
+            );
         } catch (e) {
             console.log(e);
             res.send({
@@ -142,10 +144,10 @@ export default async function routes(
         }
     });
 
-    fastify.post(path + "/notify/finish/:pollID", async (req, res) => {
+    fastify.post(path + "/notify/finish", async (req, res) => {
         try {
             // cba to infer type
-            const pollID = parseInt((req.params as any).pollID);
+            const pollID = (req.body as any).pollID;
 
             // TODO: make type
             const pollRes: any = await queryContract({
@@ -182,7 +184,6 @@ export default async function routes(
                     nodes_left: keyOrder.map((o) => o.node_id),
                 },
             });
-            
         } catch (e) {
             res.send({
                 error: "Internal Server error",
@@ -232,7 +233,8 @@ export default async function routes(
 
                         if (!msg.data.nodes_left.length) {
                             // TODO: send back data
-                            if (msg.callback) websocketCallback[msg.callback](msg.data.vote);
+                            if (msg.callback)
+                                websocketCallback[msg.callback](msg.data.vote);
                             return;
                         }
 

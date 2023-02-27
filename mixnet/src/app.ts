@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import websocket from "@fastify/websocket";
 import mixnet from "./modules/mixnet";
 import dotenv from "dotenv";
@@ -16,6 +17,9 @@ const fastify = Fastify({
             target: "pino-pretty",
         },
     },
+});
+fastify.register(cors, {
+    origin: "*",
 });
 
 fastify.get("/", async (req, res) => {

@@ -299,6 +299,7 @@ fn query_poll(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
         end_time: poll.end_time,
         title: poll.title,
         description: poll.description,
+        votes: poll.votes
     })
 }
 
@@ -323,6 +324,7 @@ fn query_polls(storage: &dyn Storage, status: PollStatus, block: &BlockInfo) -> 
                     end_time: poll.end_time,
                     title: poll.title,
                     description: poll.description,
+                    votes: poll.votes
                 }
             })
             .collect::<Vec<PollResponse>>(),
