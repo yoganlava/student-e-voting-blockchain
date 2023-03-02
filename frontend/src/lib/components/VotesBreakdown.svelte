@@ -34,7 +34,12 @@
 
 <style lang="scss">
 	.votes-breakdown {
-		&__stats {
-		}
+        grid-area: breakdown;
+        text-align: center;
+
+        &__stats {
+            max-width: 20rem;
+            margin: auto;
+        }
 	}
 </style>

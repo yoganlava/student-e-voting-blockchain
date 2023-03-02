@@ -61,7 +61,8 @@
 		grid-template-areas:
 			'banner banner banner'
 			'title title side'
-			'description description side';
+			'description description side'
+			'. breakdown .';
 
 		&__title {
 			font-size: 1.5rem;
