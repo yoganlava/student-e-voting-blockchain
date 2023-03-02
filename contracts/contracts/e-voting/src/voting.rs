@@ -2,10 +2,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::response::{IsAdminResponse, PollResponse, PollVoteCountResponse, PollsResponse};
 use crate::state::PollStatus::{Active, Pending};
-use crate::state::{
-    next_poll_id, Config, Poll, PollStatus, PollVote, PollVotes, VoteKind, Voter, CONFIG, POLLS,
-    VOTERS,
-};
+use crate::state::{next_poll_id, Config, Poll, PollStatus, PollVote, PollVotes, VoteKind, Voter, CONFIG, POLLS, VOTERS, OpaquePollVotes};
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Binary, BlockInfo, Deps, DepsMut, Env, MessageInfo, Order,
     Response, StdError, StdResult, Storage,
@@ -62,6 +59,7 @@ pub fn execute(
                         total: 0,
                         up_votes: 0,
                         down_votes: 0,
+                        malformed_votes: 0,
                         list: vec![]
                     }
                 }
@@ -74,9 +72,11 @@ pub fn execute(
                 PollVote {
                     voter_addr: info.sender,
                     poll_id,
+                    decrypted_vote: "".to_owned(),
                     decrypted_vote_kind: None,
                     encrypted_vote,
-                    tracker: None,
+                    decrypted_vote_tracker: None,
+                    malformed: false
                 },
                 &env.block,
             ),
@@ -113,7 +113,7 @@ fn execute_close_poll(
         return Err(ContractError::InvalidAuthorisation {});
     }
 
-    if poll.status == PollStatus::Active {
+    if poll.status != PollStatus::Active {
         return Err(ContractError::PollNotActive {})
     }
 
@@ -223,8 +223,10 @@ fn execute_cast_vote(
         voter_addr: vote.voter_addr.clone(),
         poll_id: vote.poll_id,
         decrypted_vote_kind: None,
+        decrypted_vote: "".to_owned(),
         encrypted_vote: vote.encrypted_vote,
-        tracker: None,
+        decrypted_vote_tracker: None,
+        malformed: false
     });
 
     POLLS.save(storage, poll.id, &poll).unwrap();
@@ -279,7 +281,40 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             is_admin: is_admin(deps.storage, deps.api.addr_validate(&addr)?),
         }),
         QueryMsg::PollVotes { poll_id } => query_poll_votes(deps.storage, poll_id),
+        QueryMsg::ParticipatedPolls {
+            addr
+        } => query_participated_poll(deps.storage, deps.api.addr_validate(&addr)?, &env.block),
+        QueryMsg::Config {} => to_binary(&CONFIG.load(deps.storage).unwrap())
     }
+}
+
+fn query_participated_poll(storage: &dyn Storage, voter_addr: Addr, block: &BlockInfo) -> StdResult<Binary> {
+    return to_binary(&POLLS
+        .range(storage, None, None, cosmwasm_std::Order::Ascending)
+        .filter(|item| {
+            let (_, poll) = item.clone().as_ref().unwrap();
+            poll.votes.list.iter().any(|vote| vote.voter_addr == voter_addr)
+        }).map(|item| {
+        let (_, poll) = item.unwrap();
+        PollResponse {
+            id: poll.id,
+            creator: poll.creator.clone(),
+            kind: poll.kind.clone(),
+            status: if poll.status == PollStatus::Active && poll.has_expired(block) { PollStatus::Pending } else { poll.status },
+            threshold_percentage: poll.threshold_percentage,
+            start_time: poll.start_time,
+            end_time: poll.end_time,
+            title: poll.title,
+            description: poll.description,
+            votes: OpaquePollVotes {
+                total: poll.votes.total,
+                up_votes: poll.votes.up_votes,
+                down_votes: poll.votes.down_votes,
+                malformed_votes: poll.votes.malformed_votes
+            }
+        }
+    })
+        .collect::<Vec<PollResponse>>())
 }
 
 fn query_poll(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
@@ -299,7 +334,12 @@ fn query_poll(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
         end_time: poll.end_time,
         title: poll.title,
         description: poll.description,
-        votes: poll.votes
+        votes: OpaquePollVotes {
+            total: poll.votes.total,
+            up_votes: poll.votes.up_votes,
+            down_votes: poll.votes.down_votes,
+            malformed_votes: poll.votes.malformed_votes
+        }
     })
 }
 
@@ -324,7 +364,12 @@ fn query_polls(storage: &dyn Storage, status: PollStatus, block: &BlockInfo) -> 
                     end_time: poll.end_time,
                     title: poll.title,
                     description: poll.description,
-                    votes: poll.votes
+                    votes: OpaquePollVotes {
+                        total: poll.votes.total,
+                        up_votes: poll.votes.up_votes,
+                        down_votes: poll.votes.down_votes,
+                        malformed_votes: poll.votes.malformed_votes
+                    }
                 }
             })
             .collect::<Vec<PollResponse>>(),
@@ -332,5 +377,10 @@ fn query_polls(storage: &dyn Storage, status: PollStatus, block: &BlockInfo) -> 
 }
 
 fn query_poll_votes(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
+    // ? Maybe only allow queries after poll ends?
     to_binary(&POLLS.load(storage, poll_id)?.votes.list)
+}
+
+fn query_participated_polls(storage: &dyn Storage, addr: Addr) -> StdResult<Binary> {
+    todo!()
 }

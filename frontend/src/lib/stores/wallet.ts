@@ -26,6 +26,7 @@ class WalletStore {
 
 	contractAddress: string = PUBLIC_CONTRACT_ADDR;
 	tokenAddress: string = PUBLIC_TOKEN_ADDR;
+	tokenBalance: Writable<string> = writable('0');
 
 	constructor(state) {
 		this.state = state;
@@ -47,7 +48,10 @@ class WalletStore {
 					.connectedWallet()
 					.subscribe(async (_wallet) => {
 						this.connectedWallet = _wallet;
-						// if (this.connectedWallet) await this.refreshVoterStats();
+						if (this.connectedWallet) {
+							await this.refreshVoterStats();
+							await this.refreshBalance();
+						}
 						// reset if disconnect
 					});
 			});
@@ -55,38 +59,38 @@ class WalletStore {
 	}
 
 	private async refreshVoterStats() {
-		const voterInfo = await this.queryContract({
-			voter_info: {
-				addr: this.connectedWallet.walletAddress
-			}
-		});
-
-		const isAdmin =
-			(
-				(await this.queryContract({
-					is_admin: {
-						addr: this.connectedWallet.walletAddress
-					}
-				})) as any
-			).is_admin ?? false;
+		const [voterInfo, adminRes] = await Promise.all([
+			this.queryContract({
+				voter_info: {
+					addr: this.connectedWallet.walletAddress
+				}
+			}),
+			this.queryContract({
+				is_admin: {
+					addr: this.connectedWallet.walletAddress
+				}
+			})
+		]);
 		voterStore.voterInfo.set(voterInfo);
-		voterStore.isAdmin.set(isAdmin);
+		voterStore.isAdmin.set((adminRes as any).is_admin ?? false);
 	}
 
 	public async queryContract(query) {
 		return this.LCDClient.wasm.contractQuery(this.contractAddress, query).catch(() => undefined);
 	}
 
-	public async queryBalance() {
-		return (
-			(await this.LCDClient.wasm
-				.contractQuery(this.tokenAddress, {
-					balance: {
-						address: this.connectedWallet.walletAddress
-					}
-				})
-				.catch(() => undefined)) as any
-		).balance;
+	public async refreshBalance() {
+		this.tokenBalance.set(
+			(
+				(await this.LCDClient.wasm
+					.contractQuery(this.tokenAddress, {
+						balance: {
+							address: this.connectedWallet.walletAddress
+						}
+					})
+					.catch(() => undefined)) as any
+			).balance
+		);
 	}
 
 	public async executeContract(msg) {

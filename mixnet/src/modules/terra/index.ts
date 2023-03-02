@@ -7,7 +7,10 @@ let _client: LCDClient;
 let _wallet: Wallet;
 
 export function initialiseClientAndWallet() {
-    _client = new LocalTerra();
+    _client = new LCDClient({
+        URL: "https://pisco-lcd.terra.dev",
+        chainID: "pisco-1",
+    });
     _wallet = _client.wallet(
         new MnemonicKey({
             mnemonic: process.env.WALLET_MNEMONIC,

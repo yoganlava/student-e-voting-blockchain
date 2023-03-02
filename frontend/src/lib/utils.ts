@@ -14,17 +14,18 @@ export function getValueFromObservable(observable) {
 
 export function toastSuccess(message: string) {
 	toast.success(message, {
-		style: 'color: mintcream; background: rgba(72,187,120,0.9)'
+		style: 'color: mintcream; background: rgb(72,187,120)'
 	});
 }
 
 export function toastDanger(message: string) {
 	toast.error(message, {
-		style: 'color: mintcream; background: rgba(212, 48, 32, 0.9)'
+		style: 'color: mintcream; background: rgb(212, 48, 32)'
 	});
 }
 
-export async function getTxLogs(txHash) {
+export async function getTxLogAttribute(txHash, attributeKey) {
 	const response = await walletStore.LCDClient.tx.txInfo(txHash);
-	return response.logs[0].events.find((event) => event.type === "wasm");
+	const event = response.logs[0].events.find((event) => event.type === "wasm");
+	return event.attributes.find((attribute) => attribute.key === attributeKey).value
 }

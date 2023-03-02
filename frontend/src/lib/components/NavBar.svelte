@@ -7,12 +7,12 @@
 <ul class="nav-bar">
 	<a class="nav-bar__logo" href="/">Surrey E-Vote</a>
 	<div class="nav-bar__items">
-		<a href="#"><li>Active Polls</li></a>
-		<a href="#"><li>Profile</li></a>
+		<a href="/profile"><li>Profile</li></a>
+		<a href="/poll/create"><li>Create Poll</li></a>
+		<a href="/register"><li>Register</li></a>
 		{#if voterStore.isAdmin}
 			<a href="/admin"><li>Admin</li></a>
 		{/if}
-		<a href="/poll/create"><li>Create Poll</li></a>
 		<TokenBalance />
 		<WalletConnect />
 	</div>

@@ -2,22 +2,11 @@
 	import { walletStore } from '$lib/stores/wallet';
 	import { onMount } from 'svelte';
 
-	let balance;
-
-	onMount(async () => {
-		console.log("Balance",
-			await walletStore.LCDClient.wasm.contractQuery(walletStore.tokenAddress, {
-				balance: {
-					address: walletStore.connectedWallet.walletAddress
-				}
-			})
-		);
-		balance = await walletStore.queryBalance();
-	});
+	const tokenBalance = walletStore.tokenBalance;
 </script>
 
 <span class="token-balance">
-	{!balance ? '-.-' : balance} SVT
+	{$tokenBalance} SVT
 </span>
 
 <style lang="scss">

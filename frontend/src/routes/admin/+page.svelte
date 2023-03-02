@@ -1,6 +1,5 @@
 <script>
 	import PollsList from "$lib/components/common/PollsList.svelte";
-	import CurrentPolls from "$lib/components/CurrentPolls.svelte";
 
     export let data;
 </script>

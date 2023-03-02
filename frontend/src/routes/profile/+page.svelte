@@ -1,44 +1,39 @@
 <script>
-	import PollCard from "$lib/components/PollCard.svelte";
+	import PollCard from '$lib/components/PollCard.svelte';
+	import VoterInfo from '$lib/components/VoterInfo.svelte';
+	import { voterStore } from '$lib/stores/voter';
 
-
-    const voterInfo = {
-        addr: "terra1h0suyqek0zylfqhqrzfgw9sq7qeq6jqmpsfjgt",
-        name: "Udeshya Gurung",
-        email: "ug00031@surrey.ac.uk",
-        student_code: 6577910
-    };
+	const voterInfo = voterStore.voterInfo;
 </script>
 
-
 <div class="profile-page">
-    <div class="profile-page__info">
-        <p class="profile-page__info-welcome">Welcome {voterInfo.name}</p>
-        <ul class="profile-page__info-more-info">
-            <li>Address: {voterInfo.addr}</li>
-            <li>Email: {voterInfo.email}</li>
-            <li>Student Code: {voterInfo.student_code}</li>
-        </ul>
-        <h1>Participated Polls:</h1>
-        <div style="display: flex;">
-            <PollCard />
-            <PollCard />
-        </div>
-    </div>
+	<div class="profile-page__info">
+		{#if !$voterInfo}
+			<p>Not Registered</p>
+		{:else}
+			<p class="profile-page__info-welcome">Welcome {$voterInfo.name}</p>
+			<VoterInfo voter={$voterInfo} />
+			<h1>Participated Polls:</h1>
+			<div style="display: flex;">
+				<PollCard />
+				<PollCard />
+			</div>
+		{/if}
+	</div>
 </div>
 
 <style lang="scss">
-    .profile-page {
-        margin: 0 5rem;
-        &__info {
-            &-welcome {
-                font-size: 18px;
-                font-weight: bold;
-            }
-            
-            &-more-info {
-                margin: 1rem 0;
-            }
-        }
-    }
+	.profile-page {
+		&__info {
+			margin: 0 5rem;
+			&-welcome {
+				font-size: 18px;
+				font-weight: bold;
+			}
+
+			&-more-info {
+				margin: 1rem 0;
+			}
+		}
+	}
 </style>

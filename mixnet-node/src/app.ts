@@ -48,7 +48,8 @@ ws.on("open", async () => {
 
     let idRes = await db.get("SELECT id FROM ID");
 
-    let uuid = idRes?.id ?? getAndCommitUUID(db);
+
+    let uuid = idRes?.id ?? await getAndCommitUUID(db);
 
     ws.send(
         JSON.stringify({
@@ -86,11 +87,36 @@ ws.on("message", async (data) => {
                     break;
                 }
 
-                ws.send(JSON.stringify(
-                    {
-                        decrypted_message: decrypt(keypair.private_key, msg.data.vote)
-                    }
-                ));
+                console.log(msg.data.votes[0]);
+
+                ws.send(
+                    JSON.stringify({
+                        type: "decryption_result",
+                        data: {
+                            ...msg.data,
+                            // TODO: make proper function
+                            votes: msg.data.votes.map((vote: any) => {
+                                const decryptedVote = {
+                                    ...vote,
+                                    // TODO: If fails to decrypt, turn vote.malformed true
+                                    encrypted_vote: [
+                                        ...decrypt(
+                                            keypair.private_key,
+                                            Buffer.from(vote.encrypted_vote)
+                                        ),
+                                    ],
+                                };
+
+                                if (!msg.data.nodes_left.length) {
+                                    decryptedVote.decrypted_vote = Buffer.from(
+                                        decryptedVote.encrypted_vote
+                                    ).toString();
+                                }
+                                return decryptedVote
+                            }),
+                        },
+                    })
+                );
 
                 break;
             }
@@ -110,30 +136,29 @@ ws.on("message", async (data) => {
                     break;
                 }
 
-
-                ws.send(JSON.stringify(
-                    {
+                ws.send(
+                    JSON.stringify({
                         // decrypted_message: encrypt(keypair.public_key, msg.data.vote)
                         // TODO: make type
                         type: "encryption_result",
                         data: {
                             ...msg.data,
-                            vote: encrypt(keypair.public_key, msg.data.vote)
+                            vote: encrypt(keypair.public_key, msg.data.vote),
                         },
-                        callback: msg.callback
-                    }
-                ));
+                        callback: msg.callback,
+                    })
+                );
 
                 break;
             }
             default:
                 console.log(`Invalid msg type: ${msg.type}`);
                 console.log(msg);
-                // ws.send(
-                //     JSON.stringify({
-                //         error: `Invalid msg type: ${msg.type}`,
-                //     })
-                // );
+            // ws.send(
+            //     JSON.stringify({
+            //         error: `Invalid msg type: ${msg.type}`,
+            //     })
+            // );
         }
     } catch (e) {
         console.log(e);

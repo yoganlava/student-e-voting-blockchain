@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde};
 use cosmwasm_std::{Addr, Timestamp};
 use cosmwasm_schema::serde::{Serialize, Deserialize};
-use crate::state::{PollKind, PollStatus, PollVotes};
+use crate::state::{OpaquePollVotes, PollKind, PollStatus, PollVotes};
 
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -15,7 +15,7 @@ pub struct PollResponse {
     pub end_time: Timestamp,
     pub title: String,
     pub description: String,
-    pub votes: PollVotes
+    pub votes: OpaquePollVotes
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

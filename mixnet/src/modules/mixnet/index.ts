@@ -95,7 +95,9 @@ export default async function routes(
                 type: "encrypt",
                 data: {
                     poll_id: pollID,
-                    vote: (req.body as any).vote,
+                    vote: `${(req.body as any).vote}.${
+                        (req.body as any).tracker
+                    }`,
                     nodes_left: keyOrder.map((o) => o.node_id),
                 },
                 callback: id,
@@ -151,10 +153,11 @@ export default async function routes(
 
             // TODO: make type
             const pollRes: any = await queryContract({
-                Poll: {
+                poll: {
                     poll_id: pollID,
                 },
             });
+            console.log(pollRes);
 
             if (pollRes.error) {
                 res.send({
@@ -163,11 +166,12 @@ export default async function routes(
             }
 
             // TODO: make type
-            const votesRes: any = await queryContract({
-                EncryptedVotes: {
-                    pollID,
+            const encryptedVotes: any = await queryContract({
+                poll_votes: {
+                    poll_id: pollID,
                 },
             });
+            console.log(encryptedVotes);
 
             const db = await getDatabase();
 
@@ -180,11 +184,12 @@ export default async function routes(
                 type: "decrypt",
                 data: {
                     poll_id: pollID,
-                    votes: votesRes.encrypted_votes,
+                    votes: encryptedVotes,
                     nodes_left: keyOrder.map((o) => o.node_id),
                 },
             });
         } catch (e) {
+            console.log(e);
             res.send({
                 error: "Internal Server error",
             });
@@ -244,23 +249,26 @@ export default async function routes(
                         });
                         break;
                     case MixnetNodeMsgType.DECRYPTION_RESULT:
-                        if (!msg.data.id) {
-                            // conn.socket.send(
-                            //     JSON.stringify({
-                            //         error: "No id provided",
-                            //     })
-                            // );
-                            return;
-                        }
+                        console.log(`[MixNet] Got decryption result from node`);
+                        // if (!msg.data.id) {
+                        //     // conn.socket.send(
+                        //     //     JSON.stringify({
+                        //     //         error: "No id provided",
+                        //     //     })
+                        //     // );
+                        //     return;
+                        // }
 
                         if (!msg.data.nodes_left.length) {
                             // TODO: handle error
-                            await executeContractMessage({
-                                ExecutePushUnMixedVotes: {
+                            console.log("[MixNet] Pushing Unmixed Votes");
+                            const res = await executeContractMessage({
+                                push_unmixed_votes: {
                                     poll_id: msg.data.poll_id,
                                     votes: msg.data.votes,
                                 },
                             });
+                            console.log(res);
                             return;
                         }
 

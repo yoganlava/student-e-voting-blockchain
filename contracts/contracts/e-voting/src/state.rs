@@ -52,8 +52,8 @@ impl FromStr for VoteKind {
 
     fn from_str(input: &str) -> Result<VoteKind, Self::Err> {
         match input {
-            "UpVote"    => Ok(VoteKind::UpVote),
-            "DownVote"  => Ok(VoteKind::DownVote),
+            "up_vote"    => Ok(VoteKind::UpVote),
+            "down_vote"  => Ok(VoteKind::DownVote),
             _           => Err(()),
         }
     }
@@ -64,8 +64,18 @@ pub struct PollVotes {
     pub total: u64,
     pub up_votes: u64,
     pub down_votes: u64,
-    pub list: Vec<PollVote>
+    pub list: Vec<PollVote>,
+    pub malformed_votes: u64
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct OpaquePollVotes {
+    pub total: u64,
+    pub up_votes: u64,
+    pub down_votes: u64,
+    pub malformed_votes: u64
+}
+
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct Poll {
@@ -87,13 +97,12 @@ impl Poll {
     }
 
     pub fn current_status(&self, block: &BlockInfo, storage: &dyn Storage) -> PollStatus {
-        if self.status == PollStatus::Active {
-            if self.has_passed(block, storage) {
-                return PollStatus::Passed
-            }
-            if self.has_expired(block) {
-                return PollStatus::Rejected
-            }
+        if self.has_passed(block, storage) {
+            return PollStatus::Passed
+        }
+
+        if self.has_expired(block) {
+            return PollStatus::Rejected
         }
 
         self.status.clone()
@@ -132,14 +141,22 @@ impl Poll {
             // TODO make less dirty
             let mut vote = item.to_owned();
 
-            if vote.decrypted_vote_kind.is_none() {
+            if vote.malformed {
+                self.votes.malformed_votes += 1;
                 return vote
             }
 
-            let strings: Vec<&str> = vote.encrypted_vote.split(".").collect();
-            let decrypted_vote_kind = VoteKind::from_str(strings[0]).unwrap();
+            let strings: Vec<&str> = vote.decrypted_vote.split(".").collect();
+            let mut decrypted_vote_kind = VoteKind::from_str(strings[0]);
+            let mut decrypted_vote_tracker = u64::from_str(strings[1]);
 
-            match decrypted_vote_kind {
+            if decrypted_vote_kind.is_err() || decrypted_vote_tracker.is_err() {
+                vote.malformed = true;
+                self.votes.malformed_votes += 1;
+                return vote
+            }
+
+            match decrypted_vote_kind.clone().unwrap() {
                 VoteKind::UpVote => {
                     self.votes.up_votes += 1;
                 }
@@ -149,10 +166,10 @@ impl Poll {
                 }
             }
 
-            vote.decrypted_vote_kind = Some(decrypted_vote_kind);
-            vote.tracker = Some(u64::from_str(strings[1]).unwrap());
 
-            // save vote
+            vote.decrypted_vote_kind = Some(decrypted_vote_kind.unwrap());
+            vote.decrypted_vote_tracker = Some(decrypted_vote_tracker.unwrap());
+
             vote
         }).collect();
     }
@@ -164,8 +181,10 @@ pub struct PollVote {
     pub voter_addr: Addr,
     pub poll_id: u64,
     pub decrypted_vote_kind: Option<VoteKind>,
-    pub encrypted_vote: String,
-    pub tracker: Option<u64>
+    pub decrypted_vote: String,
+    pub encrypted_vote: Vec<u8>,
+    pub decrypted_vote_tracker: Option<u64>,
+    pub malformed: bool
 }
 
 #[cw_serde]

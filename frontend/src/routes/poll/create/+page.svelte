@@ -2,7 +2,7 @@
 	import { PUBLIC_MIXNET_URL } from '$env/static/public';
 	import http from '$lib/http';
 	import { walletStore } from '$lib/stores/wallet';
-	import { getTxLogs, sleep, toastSuccess } from '$lib/utils';
+	import { getTxLogAttribute, sleep, toastSuccess } from '$lib/utils';
 
 	let form = {
 		title: '',
@@ -33,14 +33,10 @@
 
 		if (response.success) toastSuccess('Poll Created!');
 
-		await sleep(3000);
-
-		const txInfo = await getTxLogs(response.result.txhash);
-
-		console.log(txInfo);
+		await sleep(5000);
 
 		const createdPollID = parseInt(
-			txInfo.attributes.find((attribute) => attribute.key === 'poll_id').value,
+			await getTxLogAttribute(response.result.txhash, 'poll_id'),
 			10
 		);
 

@@ -19,7 +19,7 @@ pub enum ExecuteMsg {
     },
     CastVote {
         poll_id: u64,
-        encrypted_vote: String
+        encrypted_vote: Vec<u8>
     },
     RegisterVoter {
         name: String,
@@ -54,5 +54,9 @@ pub enum QueryMsg {
     },
     PollVotes {
         poll_id: u64
-    }
+    },
+    ParticipatedPolls {
+        addr: String
+    },
+    Config {}
 }
