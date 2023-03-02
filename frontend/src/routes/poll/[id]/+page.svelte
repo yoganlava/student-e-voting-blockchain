@@ -1,6 +1,7 @@
 <script>
 	import { PUBLIC_MIXNET_URL } from '$env/static/public';
 	import PollStatusBanner from '$lib/components/PollStatusBanner.svelte';
+	import VotesBreakdown from '$lib/components/VotesBreakdown.svelte';
 	import http from '$lib/http';
 	import { walletStore } from '$lib/stores/wallet';
 	
@@ -40,6 +41,8 @@
 		</div>
 		<div class="poll__side-info">
 			<ul>
+				<li>Creator: {data.poll.creator}</li>
+				<li>Poll Type: {Object.keys(data.poll.kind)[0].toUpperCase()}</li>
 				<li>Status: {data.poll.status.toUpperCase()}</li>
 				<li>
 					Start Date: {new Date(data.poll.start_time / 1000000).toLocaleString().split(',')[0]}
@@ -48,6 +51,7 @@
 			</ul>
 		</div>
 	</div>
+	<VotesBreakdown poll={data.poll}/>
 </div>
 
 <style lang="scss">
