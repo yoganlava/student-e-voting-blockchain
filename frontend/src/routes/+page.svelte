@@ -1,5 +1,6 @@
 <script>
 	import PollsList from "$lib/components/common/PollsList.svelte";
+	import PollColumn from "$lib/components/PollColumn.svelte";
 
 	export let data;
 
@@ -7,18 +8,12 @@
 </script>
 
 <div class="main-page">
-	<div>
-		<h1>Current Polls:</h1>
-		<PollsList polls={data.currentPolls.polls}/>
-	</div>
-	<div>
-		<h1>Past Polls:</h1>
-		<PollsList polls={data.pastPolls.polls}/>
-	</div>
+	<PollColumn header="Current Polls" polls={data.currentPolls.polls}/>
+	<PollColumn header="Past Polls" polls={data.pastPolls.polls}/>
 </div>
 
 <style lang="scss">
 	.main-page {
-
+		
 	}
 </style>

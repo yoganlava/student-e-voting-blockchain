@@ -3,7 +3,7 @@ import http from './http';
 import { walletStore } from './stores/wallet';
 
 export async function sleep(timeout: number) {
-    await new Promise((resolve) => setTimeout(resolve, timeout));
+	await new Promise((resolve) => setTimeout(resolve, timeout));
 }
 
 export function getValueFromObservable(observable) {
@@ -26,6 +26,11 @@ export function toastDanger(message: string) {
 
 export async function getTxLogAttribute(txHash, attributeKey) {
 	const response = await walletStore.LCDClient.tx.txInfo(txHash);
-	const event = response.logs[0].events.find((event) => event.type === "wasm");
-	return event.attributes.find((attribute) => attribute.key === attributeKey).value
+	const event = response.logs[0].events.find((event) => event.type === 'wasm');
+	return event.attributes.find((attribute) => attribute.key === attributeKey).value;
+}
+
+export function daysUntil(from, to) {
+	let difference = from.getTime() - to.getTime();
+	return Math.ceil(difference / (1000 * 3600 * 24));
 }

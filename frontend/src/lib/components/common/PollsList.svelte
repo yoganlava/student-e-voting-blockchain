@@ -7,6 +7,7 @@
 <div class="polls-list">
 	{#each polls as poll (poll.id)}
 		<PollCard {poll} />
+		<!-- <PollCard {poll} /> -->
 	{/each}
 </div>
 
