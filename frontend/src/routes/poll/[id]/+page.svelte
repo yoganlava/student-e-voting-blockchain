@@ -1,10 +1,14 @@
 <script>
+	import { goto } from '$app/navigation';
 	import { PUBLIC_MIXNET_URL } from '$env/static/public';
 	import PollStatusBanner from '$lib/components/PollStatusBanner.svelte';
 	import VotesBreakdown from '$lib/components/VotesBreakdown.svelte';
 	import http from '$lib/http';
+	import { voterStore } from '$lib/stores/voter';
 	import { walletStore } from '$lib/stores/wallet';
-	
+
+	// TODO: finda alternative
+	const isAdmin = voterStore.isAdmin;
 
 	export let data;
 
@@ -28,16 +32,24 @@
 </script>
 
 <div class="poll">
-	<PollStatusBanner status={data.poll.status}/>
+	<PollStatusBanner status={data.poll.status} />
 	<div class="poll__title">{data.poll.title}</div>
 	<div class="poll__description">
 		{data.poll.description}
 	</div>
 	<div class="poll__side">
 		<div class="poll__side-actions">
-			<button class="btn">Vote</button>
-			<button class="btn btn-danger" on:click={closePoll}>Close Poll</button>
-			<button class="btn" on:click={tallyPoll}>Tally Poll</button>
+			{#if data.poll.status === 'active'}
+				<button class="btn" on:click={() => goto(`/vote/${data.poll.id}`)}>Vote</button>
+			{/if}
+			{#if data.poll.creator === walletStore.connectedWallet?.walletAddress || $isAdmin}
+				{#if data.poll.status === 'active'}
+					<button class="btn btn-danger" on:click={closePoll}>Close Poll</button>
+				{/if}
+				{#if data.poll.status === 'pending'}
+					<button class="btn" on:click={tallyPoll}>Tally Poll</button>
+				{/if}
+			{/if}
 		</div>
 		<div class="poll__side-info">
 			<ul>
@@ -51,7 +63,7 @@
 			</ul>
 		</div>
 	</div>
-	<VotesBreakdown poll={data.poll}/>
+	<VotesBreakdown poll={data.poll} />
 </div>
 
 <style lang="scss">

@@ -2,6 +2,7 @@ import { walletStore } from '$lib/stores/wallet';
 
 /** @type {import('./$types').PageLoad} */
 export async function load({ params }) {
+	//TODO:? Combine into one 
 	try {
 		return {
 			currentPolls: await walletStore.queryContract({
@@ -9,9 +10,19 @@ export async function load({ params }) {
 					status: 'active'
 				}
 			}),
-			pastPolls: await walletStore.queryContract({
+			pendingPolls: await walletStore.queryContract({
+				polls: {
+					status: 'pending'
+				}
+			}),
+			passedPolls: await walletStore.queryContract({
 				polls: {
 					status: 'passed'
+				}
+			}),
+			rejectedPolls: await walletStore.queryContract({
+				polls: {
+					status: 'rejected'
 				}
 			})
 		};

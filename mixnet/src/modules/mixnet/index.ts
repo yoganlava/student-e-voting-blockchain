@@ -185,7 +185,7 @@ export default async function routes(
                 data: {
                     poll_id: pollID,
                     votes: encryptedVotes,
-                    nodes_left: keyOrder.map((o) => o.node_id),
+                    nodes_left: keyOrder.reverse().map((o) => o.node_id),
                 },
             });
         } catch (e) {
@@ -202,6 +202,10 @@ export default async function routes(
         });
     });
 
+    fastify.get(path + "/keys", async (req, res) => {
+        console.log("/keys");
+    });
+
     fastify.get(path + "/ws", { websocket: true }, async (conn, req) => {
         fastify.log.info("[MixNet] MixNet Node connected");
 
@@ -210,6 +214,9 @@ export default async function routes(
                 const msg: MixnetNodeMsg = JSON.parse(message.toString());
                 console.log(msg);
                 switch (msg.type) {
+                    case MixnetNodeMsgType.KEY_RESPONSE:
+                        // TODO
+                        break;
                     case MixnetNodeMsgType.REGISTER:
                         // if (!msg.data.id) {
                         //     conn.socket.send(

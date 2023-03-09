@@ -33,7 +33,7 @@
 
 		if (response.success) toastSuccess('Poll Created!');
 
-		await sleep(5000);
+		await sleep(6000);
 
 		const createdPollID = parseInt(
 			await getTxLogAttribute(response.result.txhash, 'poll_id'),

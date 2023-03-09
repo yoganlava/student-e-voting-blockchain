@@ -48,8 +48,7 @@ ws.on("open", async () => {
 
     let idRes = await db.get("SELECT id FROM ID");
 
-
-    let uuid = idRes?.id ?? await getAndCommitUUID(db);
+    let uuid = idRes?.id ?? (await getAndCommitUUID(db));
 
     ws.send(
         JSON.stringify({
@@ -70,7 +69,20 @@ ws.on("message", async (data) => {
                 console.log(
                     `[MixNet Node] Create key message recieved - Poll ID: ${msg.data.poll_id}`
                 );
-                await getAndCommitKey(db, msg.data.poll_id);
+                const publicKey = await getAndCommitKey(db, msg.data.poll_id);
+
+                let nodeID = await db.get("SELECT id FROM ID");
+
+                ws.send(
+                    JSON.stringify({
+                        type: "key_response",
+                        data: {
+                            key: publicKey,
+                            poll_id: msg.data.poll_id,
+                            node_id: nodeID,
+                        },
+                    })
+                );
                 break;
             case MixnetMessageType.DECRYPT: {
                 console.log(
@@ -112,7 +124,7 @@ ws.on("message", async (data) => {
                                         decryptedVote.encrypted_vote
                                     ).toString();
                                 }
-                                return decryptedVote
+                                return decryptedVote;
                             }),
                         },
                     })

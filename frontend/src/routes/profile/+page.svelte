@@ -1,24 +1,21 @@
 <script>
-	import PollCard from '$lib/components/PollCard.svelte';
+	import PollsList from '$lib/components/common/PollsList.svelte';
+import PollCard from '$lib/components/PollCard.svelte';
 	import VoterInfo from '$lib/components/VoterInfo.svelte';
 	import { voterStore } from '$lib/stores/voter';
 
 	const voterInfo = voterStore.voterInfo;
+
+	export let data;
 </script>
 
 <div class="profile-page">
 	<div class="profile-page__info">
-		{#if !$voterInfo}
-			<p>Not Registered</p>
-		{:else}
-			<p class="profile-page__info-welcome">Welcome {$voterInfo.name}</p>
+		<p class="profile-page__info-welcome">Welcome {$voterInfo.name}</p>
 			<VoterInfo voter={$voterInfo} />
-			<h1>Participated Polls:</h1>
-			<div style="display: flex;">
-				<PollCard />
-				<PollCard />
-			</div>
-		{/if}
+		<!-- <div style="display: flex;"> -->
+			<PollsList title="Participated Polls" polls={data?.participatedPolls}/>
+		<!-- </div> -->
 	</div>
 </div>
 

@@ -2,15 +2,19 @@
 	import { voterStore } from '$lib/stores/voter';
 	import TokenBalance from './TokenBalance.svelte';
 	import WalletConnect from './WalletConnect.svelte';
+	const voterInfo = voterStore.voterInfo;
+	const isAdmin = voterStore.isAdmin;
 </script>
 
 <ul class="nav-bar">
 	<a class="nav-bar__logo" href="/">Surrey E-Vote</a>
 	<div class="nav-bar__items">
-		<a href="/profile"><li>Profile</li></a>
+		{#if $voterInfo}
+			<a href="/profile"><li>Profile</li></a>
+		{/if}
 		<a href="/poll/create"><li>Create Poll</li></a>
 		<a href="/register"><li>Register</li></a>
-		{#if voterStore.isAdmin}
+		{#if $isAdmin}
 			<a href="/admin"><li>Admin</li></a>
 		{/if}
 		<TokenBalance />

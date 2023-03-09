@@ -95,7 +95,8 @@ pub fn execute(
         ExecuteMsg::ChangeConfig { config } => execute_change_config(deps.storage, config, info.sender),
         ExecuteMsg::PushUnmixedVotes { poll_id, votes } => execute_push_unmixed_votes(deps.storage, poll_id, votes, info.sender, &env.block),
         // Prematurely close poll for tallying before end height is reached
-        ExecuteMsg::ClosePoll { poll_id } => execute_close_poll(deps.storage, poll_id, info.sender)
+        ExecuteMsg::ClosePoll { poll_id } => execute_close_poll(deps.storage, poll_id, info.sender),
+        // TODO: Gift Execute message
     }
 }
 
@@ -174,6 +175,7 @@ fn execute_create_poll(
     mut poll: Poll,
 ) -> Result<Response, ContractError> {
     // TODO verification
+    // TODO ask for token fee of like 10 SVT idk
 
     let poll_id = next_poll_id(storage)?;
     poll.id = poll_id;
@@ -271,8 +273,7 @@ fn is_mixnet(storage: &dyn Storage, addr: Addr) -> bool {
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Poll { poll_id } => query_poll(deps.storage, poll_id),
-        // TODO: implement seeing polls that are not active
-        // TODO: maybe a "not" modifier?
+        // TODO: Polls { limit: u64 } => .take(limit) => { active_polls: [],  pending_polls: [], passed_polls: [], rejected_polls: [] }
         QueryMsg::Polls { status } => query_polls(deps.storage, status, &env.block),
         QueryMsg::VoterInfo { addr } => {
             to_binary(&VOTERS.load(deps.storage, deps.api.addr_validate(&addr)?)?)
@@ -284,7 +285,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ParticipatedPolls {
             addr
         } => query_participated_poll(deps.storage, deps.api.addr_validate(&addr)?, &env.block),
-        QueryMsg::Config {} => to_binary(&CONFIG.load(deps.storage).unwrap())
+        QueryMsg::Config {} => to_binary(&CONFIG.load(deps.storage).unwrap()),
+    //     TODO a query to check if a voter has voted in the poll
+    //     TODO: allow to view vote details after passed/rejected
+
+    //     TODO: Query gift notifications
+
     }
 }
 

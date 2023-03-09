@@ -100,15 +100,11 @@ impl Poll {
         if self.has_passed(block, storage) {
             return PollStatus::Passed
         }
-
-        if self.has_expired(block) {
-            return PollStatus::Rejected
-        }
-
-        self.status.clone()
+        PollStatus::Rejected
     }
 
     pub fn update_status(&mut self, block: &BlockInfo, storage: &dyn Storage) {
+
         self.status = self.current_status(block, storage);
     }
 
