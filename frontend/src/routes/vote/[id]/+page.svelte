@@ -3,6 +3,7 @@
 	import http from '$lib/http';
 	import { walletStore } from '$lib/stores/wallet';
 	import { toastDanger } from '$lib/utils';
+	import { encrypt } from 'eciesjs';
 
 	export let data;
 
@@ -16,6 +17,12 @@
 		form.tracker = Math.floor(Math.random() * 100000000);
 	}
 
+	async function encryptVote({ pollID, tracker, vote }) {
+		const { keys } = await http(`${PUBLIC_MIXNET_URL}/mixnet/keys?pollID=${pollID}`, {}, 'GET');
+
+		return keys.reduce((text, publicKey) => encrypt(publicKey, text), `${vote}.${tracker}`)
+	}
+
 	async function registerVote() {
 		if (!form.tracker) {
 			toastDanger('Generate a valid tracker');
@@ -23,11 +30,11 @@
 		}
 
 		console.log(form);
-		const {encryptedVote} = await http(`${PUBLIC_MIXNET_URL}/mixnet/encrypt`, form, 'POST');
+		const encryptedVote = await encryptVote(form);
 		await walletStore.executeContract({
 			cast_vote: {
 				poll_id: data.poll.id,
-				encrypted_vote: encryptedVote.data
+				encrypted_vote: new Array(...encryptedVote)
 			}
 		});
 	}

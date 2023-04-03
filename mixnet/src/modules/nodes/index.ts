@@ -1,5 +1,6 @@
 import { SocketStream } from "@fastify/websocket";
 import { Database } from "sqlite";
+import { getDatabase } from "../db";
 
 let _connectedNodes: Map<string, SocketStream>;
 
@@ -43,16 +44,14 @@ function shuffle(array: Array<any>): Array<any> {
     return shuffledArray;
 }
 
-export async function broadcastKeyCreateToNodes(
-    db: Database,
-    pollID: number
-): Promise<void> {
+export async function broadcastKeyCreateToNodes(pollID: number): Promise<void> {
     /*
     TODO: Randomly select connected nodes
     TODO: Asks keys to be generated
     TODO: Save keys in key_order table so when it is time for encryption/decryption...
     TODO: ...we know in what order to encrypt/decrypt
     */
+    const db = await getDatabase();
 
     const shuffledNodes: Array<[string, SocketStream]> = shuffle(
         Array.from(_connectedNodes.entries())
@@ -75,4 +74,23 @@ export async function broadcastKeyCreateToNodes(
             i
         );
     }
+}
+
+export async function saveNodePublicKey(nodeID: string, pollID:number, publicKey: string) {
+    const db = await getDatabase();
+    await db.run(
+        "UPDATE key_order SET public_key = ? WHERE node_id = ? AND poll_id = ?",
+        publicKey,
+        nodeID,
+        pollID
+    );
+}
+
+export async function getPublicKeys(pollID: number) {
+    const db = await getDatabase();
+    const keyOrder = await db.all(
+        "SELECT public_key FROM key_order where poll_id = ? ORDER BY node_index ASC",
+        pollID
+    );
+    return keyOrder.map(k => k.public_key);
 }

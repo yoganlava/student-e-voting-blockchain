@@ -32,12 +32,16 @@
 		"@walletconnect/socket-transport": "^1.8.0",
 		"buffer": "^6.0.3",
 		"chart.js": "^4.2.1",
+		"crypto-browserify": "^3.12.0",
 		"dotenv": "^16.0.3",
+		"eciesjs": "^0.3.16",
 		"node-sass": "^8.0.0",
 		"process": "^0.11.10",
 		"readable-stream": "^4.3.0",
+		"stream-browserify": "^3.0.0",
 		"svelte-chartjs": "^3.1.2",
 		"svelte-fa": "^3.0.3",
-		"svelte-french-toast": "^1.0.3"
+		"svelte-french-toast": "^1.0.3",
+		"vite-compatible-readable-stream": "^3.6.1"
 	}
 }

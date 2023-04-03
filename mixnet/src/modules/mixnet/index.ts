@@ -5,7 +5,9 @@ import {
     broadcastKeyCreateToNodes,
     getConnectedNodesCount,
     getNodeByID,
+    getPublicKeys,
     removeNode,
+    saveNodePublicKey,
 } from "../nodes";
 import { executeContractMessage, queryContract } from "../terra";
 import { getDatabase } from "../db";
@@ -74,7 +76,7 @@ export default async function routes(
             const db = await getDatabase();
 
             const keyOrder = await db.all(
-                "SELECT * FROM key_order where poll_id = ? ORDER BY node_id ASC",
+                "SELECT node_id FROM key_order where poll_id = ? ORDER BY node_index ASC",
                 pollID
             );
 
@@ -119,8 +121,6 @@ export default async function routes(
     // TODO make more secure
     fastify.post(path + "/notify/create", async (req, res) => {
         try {
-            console.log(req.body);
-            console.log(typeof req.body);
             // // TODO: make type
             // const pollRes: any = await queryContract({
             //     Poll: {
@@ -134,10 +134,7 @@ export default async function routes(
             //     });
             // }
 
-            await broadcastKeyCreateToNodes(
-                await getDatabase(),
-                (req.body as any).pollID
-            );
+            await broadcastKeyCreateToNodes((req.body as any).pollID);
         } catch (e) {
             console.log(e);
             res.send({
@@ -203,7 +200,11 @@ export default async function routes(
     });
 
     fastify.get(path + "/keys", async (req, res) => {
-        console.log("/keys");
+        const pollID = (req.query as any).pollID;
+
+        res.send({
+            keys: await getPublicKeys(pollID)
+        })
     });
 
     fastify.get(path + "/ws", { websocket: true }, async (conn, req) => {
@@ -215,7 +216,11 @@ export default async function routes(
                 console.log(msg);
                 switch (msg.type) {
                     case MixnetNodeMsgType.KEY_RESPONSE:
-                        // TODO
+                        await saveNodePublicKey(
+                            msg.data.node_id,
+                            msg.data.poll_id,
+                            msg.data.key
+                        );
                         break;
                     case MixnetNodeMsgType.REGISTER:
                         // if (!msg.data.id) {

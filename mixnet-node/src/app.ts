@@ -79,7 +79,7 @@ ws.on("message", async (data) => {
                         data: {
                             key: publicKey,
                             poll_id: msg.data.poll_id,
-                            node_id: nodeID,
+                            node_id: nodeID.id,
                         },
                     })
                 );
@@ -98,8 +98,6 @@ ws.on("message", async (data) => {
                     );
                     break;
                 }
-
-                console.log(msg.data.votes[0]);
 
                 ws.send(
                     JSON.stringify({

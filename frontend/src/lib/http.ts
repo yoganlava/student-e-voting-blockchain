@@ -1,16 +1,14 @@
 export default async function http(url: string, data: any = undefined, method: string = 'GET') {
 	let config: any = {
-		method
+		method,
+		headers: {
+			'Content-Type': 'application/json'
+		}
 	};
 
-	if (method != 'GET') {
-		config.headers = {
-			'Content-Type': 'application/json'
-		};
-		config.body = JSON.stringify(data);
-	}
+	if (method != 'GET') config.body = JSON.stringify(data);
 
-	console.log(config)
+	console.log(config);
 
 	const response = await fetch(url, config);
 

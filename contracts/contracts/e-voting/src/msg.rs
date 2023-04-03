@@ -43,6 +43,7 @@ pub enum QueryMsg {
     Poll {
         poll_id: u64
     },
+    // Make status into limit
     Polls {
         status: PollStatus
     },
