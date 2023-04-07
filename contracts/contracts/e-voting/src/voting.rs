@@ -1,10 +1,10 @@
 use crate::error::ContractError;
-use crate::msg::{Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::msg::{CallbackMsg, Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
 use crate::response::{IsAdminResponse, PollResponse, PollsResponse};
 
-use crate::state::{next_poll_id, Config, Poll, PollStatus, PollVote, PollVotes, Voter, CONFIG, POLLS, VOTERS, OpaquePollVotes};
-use cosmwasm_std::{entry_point, to_binary, Addr, Binary, BlockInfo, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Storage, CosmosMsg, WasmMsg, Uint128, from_binary};
-use cw20::Cw20ReceiveMsg;
+use crate::state::{next_poll_id, Config, Poll, PollStatus, PollVote, PollVotes, Voter, CONFIG, POLLS, VOTERS, OpaquePollVotes, GIFTS, GiftLog};
+use cosmwasm_std::{entry_point, to_binary, Addr, Binary, BlockInfo, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Storage, WasmMsg, Uint128, from_binary};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -67,8 +67,28 @@ pub fn execute(
         ExecuteMsg::ChangeConfig { config } => execute_change_config(deps.storage, config, info.sender),
         ExecuteMsg::PushUnmixedVotes { poll_id, votes } => execute_push_unmixed_votes(deps.storage, poll_id, votes, info.sender, &env.block),
         // Prematurely close poll for tallying before end height is reached
-        ExecuteMsg::ClosePoll { poll_id } => execute_close_poll(deps.storage, poll_id, info.sender)
-        // TODO: Gift Execute message
+        ExecuteMsg::ClosePoll { poll_id } => execute_close_poll(deps.storage, poll_id, info.sender),
+        ExecuteMsg::Callback(msg) => handle_callback(deps.storage, msg)
+    }
+}
+
+fn handle_callback(storage: &mut dyn Storage, msg: CallbackMsg) -> Result<Response, ContractError>  {
+    match msg {
+        CallbackMsg::AfterGiftVoter {
+            gift_log
+        } => {
+            let mut gifts = GIFTS.load(storage, gift_log.receiver.clone()).unwrap_or(vec![]);
+
+            gifts.push(GiftLog {
+                receiver: gift_log.receiver.clone(),
+                amount: gift_log.amount,
+                message: gift_log.message
+            });
+
+            GIFTS.save(storage, gift_log.receiver, &gifts);
+            Ok(Response::new()
+                .add_attribute("action", "gift_voter"))
+        }
     }
 }
 
@@ -107,8 +127,41 @@ fn handle_receive_message(storage: &mut dyn Storage, msg: Cw20ReceiveMsg, info: 
                 }
             )
         },
+        Ok(
+        Cw20HookMsg::GiftVoter {
+            receiver,
+            message
+        }) => gift_voter(storage, receiver, msg.amount, message, env),
         _ => Err(ContractError::Std(StdError::generic_err("Bad Message"))),
     }
+}
+
+fn gift_voter(storage: &mut dyn Storage, receiver: Addr, amount: Uint128, message: String, env: Env) -> Result<Response, ContractError> {
+    if !is_voter(storage, receiver.clone()) {
+        return Err(ContractError::VoterNotExist {})
+    }
+
+    let config = CONFIG.load(storage)?;
+
+    let after_gift_callback = CallbackMsg::AfterGiftVoter {
+        gift_log: GiftLog {
+            receiver: receiver.clone(),
+            amount,
+            message
+        }
+    }.to_cosmos_msg(&env.contract.address)?;
+
+    Ok(Response::new()
+        .add_message(WasmMsg::Execute {
+            contract_addr: config.voting_token_addr.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: receiver.to_string(),
+                amount
+            })?,
+            funds: vec![]
+        })
+        .add_message(after_gift_callback)
+    )
 }
 
 fn execute_close_poll(
@@ -276,6 +329,10 @@ fn is_admin(storage: &dyn Storage, addr: Addr) -> bool {
     CONFIG.load(storage).unwrap().admins.contains(&addr)
 }
 
+fn is_voter(storage: &dyn Storage, addr: Addr) -> bool {
+    VOTERS.load(storage, addr).is_ok()
+}
+
 fn is_mixnet(storage: &dyn Storage, addr: Addr) -> bool {
     CONFIG.load(storage).unwrap().mixnet_addr == addr
 }
@@ -298,11 +355,28 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         } => query_participated_poll(deps.storage, deps.api.addr_validate(&addr)?, &env.block),
         QueryMsg::Config {} => to_binary(&CONFIG.load(deps.storage).unwrap()),
     //     TODO a query to check if a voter has voted in the poll
-    //     TODO: allow to view vote details after passed/rejected
-
-    //     TODO: Query gift notifications
-
+        QueryMsg::Gifts {
+            addr
+        } => to_binary(&GIFTS.load(deps.storage, deps.api.addr_validate(&addr)?).unwrap_or(vec![])),
+        QueryMsg::Vote {
+            addr,
+            poll_id
+        } => query_vote(deps.storage, deps.api.addr_validate(&addr)?, poll_id, &env.block)
     }
+}
+
+fn query_vote(storage: &dyn Storage, voter_addr: Addr, poll_id: u64, block: &BlockInfo) -> StdResult<Binary> {
+    let poll = match POLLS.may_load(storage, poll_id)? {
+        Some(poll) => Some(poll),
+        None => return Err(StdError::generic_err("Poll does not exist")),
+    }.unwrap();
+
+    if poll.status != PollStatus::Active || poll.has_expired(block) {}
+    let vote = poll.votes.list.iter().find(|v| v.voter_addr == voter_addr);
+    if vote.is_none() {
+        return Err(StdError::generic_err("Vote does not exist"))
+    }
+    to_binary(&vote.unwrap())
 }
 
 fn query_participated_poll(storage: &dyn Storage, voter_addr: Addr, block: &BlockInfo) -> StdResult<Binary> {

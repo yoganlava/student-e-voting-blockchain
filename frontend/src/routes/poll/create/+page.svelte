@@ -30,7 +30,7 @@
 			{
 				send: {
 					contract: PUBLIC_CONTRACT_ADDR,
-					amount: "10000",
+					amount: "1000",
 					msg: Buffer.from(
 						JSON.stringify({
 							create_poll: formToSend

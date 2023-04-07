@@ -1,10 +1,11 @@
-
+use std::fmt;
 use cosmwasm_schema::{cw_serde};
+use cosmwasm_schema::schemars::JsonSchema;
 // use cosmwasm_schema::schemars::JsonSchema;
-use cosmwasm_schema::serde::{Serialize, Deserialize};
-use cosmwasm_std::{Addr, CosmosMsg, StdResult, Timestamp, to_binary, Uint128, WasmMsg};
+
+use cosmwasm_std::{Addr, CosmosMsg, StdResult, Timestamp, to_binary, WasmMsg};
 use cw20::Cw20ReceiveMsg;
-use crate::state::{Config, Poll, PollKind, PollStatus, PollVote};
+use crate::state::{Config, GiftLog, PollKind, PollStatus, PollVote};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -33,7 +34,8 @@ pub enum ExecuteMsg {
     },
     ClosePoll {
         poll_id: u64
-    }
+    },
+    Callback(CallbackMsg)
 }
 
 #[cw_serde]
@@ -45,6 +47,30 @@ pub enum Cw20HookMsg {
         start_time: Option<Timestamp>,
         end_time: Timestamp,
     },
+    GiftVoter {
+        receiver: Addr,
+        message: String
+    }
+}
+
+#[cw_serde]
+pub enum CallbackMsg {
+    AfterGiftVoter {
+        gift_log: GiftLog
+    }
+}
+
+impl CallbackMsg {
+    pub fn to_cosmos_msg<T: Clone + fmt::Debug + PartialEq + JsonSchema>(
+        self,
+        contract_addr: &Addr,
+    ) -> StdResult<CosmosMsg<T>> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: String::from(contract_addr),
+            msg: to_binary(&ExecuteMsg::Callback(self))?,
+            funds: vec![],
+        }))
+    }
 }
 
 #[cw_serde]
@@ -68,6 +94,13 @@ pub enum QueryMsg {
     ParticipatedPolls {
         addr: String
     },
-    Config {}
+    Config {},
+    Gifts {
+        addr: String
+    },
+    Vote {
+        addr: String,
+        poll_id: u64
+    }
 }
 

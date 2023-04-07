@@ -191,12 +191,21 @@ pub struct Voter {
     pub student_code: u64,
 }
 
+#[cw_serde]
+pub struct GiftLog {
+    pub receiver: Addr,
+    pub amount: Uint128,
+    pub message: String
+}
+
 pub const CONFIG: Item<Config> = Item::new("config");
 pub const POLLS: Map<u64, Poll> = Map::new("polls");
 pub const POLL_COUNT: Item<u64> = Item::new("poll_count");
 // Votes (voter_addr, poll_id)
 // pub const VOTES: Map<(Addr, u64), PollVote> = Map::new("votes");
 pub const VOTERS: Map<Addr, Voter> = Map::new("voters");
+// Logs of all gifts given by admins
+pub const GIFTS: Map<Addr, Vec<GiftLog>> = Map::new("gifts");
 
 pub fn next_poll_id(storage: &mut dyn Storage) -> StdResult<u64> {
     let id: u64 = POLL_COUNT.may_load(storage)?.unwrap_or_default() + 1;
