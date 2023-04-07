@@ -1,6 +1,10 @@
+
 use cosmwasm_schema::{cw_serde};
-use cosmwasm_std::Timestamp;
-use crate::state::{Config, PollKind, PollStatus, PollVote, PollVotes};
+// use cosmwasm_schema::schemars::JsonSchema;
+use cosmwasm_schema::serde::{Serialize, Deserialize};
+use cosmwasm_std::{Addr, CosmosMsg, StdResult, Timestamp, to_binary, Uint128, WasmMsg};
+use cw20::Cw20ReceiveMsg;
+use crate::state::{Config, Poll, PollKind, PollStatus, PollVote};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -10,13 +14,7 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    CreatePoll {
-        title: String,
-        kind: PollKind,
-        description: String,
-        start_time: Option<Timestamp>,
-        end_time: Timestamp,
-    },
+    Receive(Cw20ReceiveMsg),
     CastVote {
         poll_id: u64,
         encrypted_vote: Vec<u8>
@@ -36,6 +34,17 @@ pub enum ExecuteMsg {
     ClosePoll {
         poll_id: u64
     }
+}
+
+#[cw_serde]
+pub enum Cw20HookMsg {
+    CreatePoll {
+        title: String,
+        kind: PollKind,
+        description: String,
+        start_time: Option<Timestamp>,
+        end_time: Timestamp,
+    },
 }
 
 #[cw_serde]
@@ -61,3 +70,4 @@ pub enum QueryMsg {
     },
     Config {}
 }
+

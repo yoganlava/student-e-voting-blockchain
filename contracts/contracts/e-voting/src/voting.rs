@@ -1,13 +1,11 @@
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::response::{IsAdminResponse, PollResponse, PollVoteCountResponse, PollsResponse};
-use crate::state::PollStatus::{Active, Pending};
-use crate::state::{next_poll_id, Config, Poll, PollStatus, PollVote, PollVotes, VoteKind, Voter, CONFIG, POLLS, VOTERS, OpaquePollVotes};
-use cosmwasm_std::{
-    entry_point, to_binary, Addr, Binary, BlockInfo, Deps, DepsMut, Env, MessageInfo, Order,
-    Response, StdError, StdResult, Storage,
-};
-use std::str::FromStr;
+use crate::msg::{Cw20HookMsg, ExecuteMsg, InstantiateMsg, QueryMsg};
+use crate::response::{IsAdminResponse, PollResponse, PollsResponse};
+
+use crate::state::{next_poll_id, Config, Poll, PollStatus, PollVote, PollVotes, Voter, CONFIG, POLLS, VOTERS, OpaquePollVotes};
+use cosmwasm_std::{entry_point, to_binary, Addr, Binary, BlockInfo, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError, StdResult, Storage, CosmosMsg, WasmMsg, Uint128, from_binary};
+use cw20::Cw20ReceiveMsg;
+
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -36,34 +34,8 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    return match msg {
-        ExecuteMsg::CreatePoll {
-            title,
-            kind,
-            description,
-            start_time,
-            end_time,
-        } => execute_create_poll(
-                deps.storage,
-                Poll {
-                    id: 0,
-                    creator: info.sender,
-                    kind,
-                    status: PollStatus::Active,
-                    threshold_percentage: None,
-                    start_time: start_time.unwrap_or(env.block.time),
-                    end_time,
-                    title,
-                    description,
-                    votes: PollVotes {
-                        total: 0,
-                        up_votes: 0,
-                        down_votes: 0,
-                        malformed_votes: 0,
-                        list: vec![]
-                    }
-                }
-            ),
+    match msg {
+        ExecuteMsg::Receive(msg) => handle_receive_message(deps.storage, msg, info, env),
         ExecuteMsg::CastVote {
             poll_id,
             encrypted_vote,
@@ -95,8 +67,47 @@ pub fn execute(
         ExecuteMsg::ChangeConfig { config } => execute_change_config(deps.storage, config, info.sender),
         ExecuteMsg::PushUnmixedVotes { poll_id, votes } => execute_push_unmixed_votes(deps.storage, poll_id, votes, info.sender, &env.block),
         // Prematurely close poll for tallying before end height is reached
-        ExecuteMsg::ClosePoll { poll_id } => execute_close_poll(deps.storage, poll_id, info.sender),
+        ExecuteMsg::ClosePoll { poll_id } => execute_close_poll(deps.storage, poll_id, info.sender)
         // TODO: Gift Execute message
+    }
+}
+
+fn handle_receive_message(storage: &mut dyn Storage, msg: Cw20ReceiveMsg, info: MessageInfo, env: Env) -> Result<Response, ContractError> {
+    return match from_binary::<Cw20HookMsg>(&msg.msg) {
+        Ok(Cw20HookMsg::CreatePoll {
+               title,
+               kind,
+               description,
+               start_time,
+               end_time,
+           }) => {
+            // TODO: dont hardcode
+            if msg.amount < Uint128::from(10000u32) {
+                return Err(ContractError::InvalidAmountPaid(Uint128::from(10000u32), msg.amount))
+            }
+            create_poll(
+                storage,
+                Poll {
+                    id: 0,
+                    creator: info.sender,
+                    kind,
+                    status: PollStatus::Active,
+                    threshold_percentage: None,
+                    start_time: start_time.unwrap_or(env.block.time),
+                    end_time,
+                    title,
+                    description,
+                    votes: PollVotes {
+                        total: 0,
+                        up_votes: 0,
+                        down_votes: 0,
+                        malformed_votes: 0,
+                        list: vec![]
+                    }
+                }
+            )
+        },
+        _ => Err(ContractError::Std(StdError::generic_err("Bad Message"))),
     }
 }
 
@@ -170,16 +181,16 @@ fn execute_change_config(
     Ok(Response::new().add_attribute("action", "change_config"))
 }
 
-fn execute_create_poll(
+fn create_poll(
     storage: &mut dyn Storage,
-    mut poll: Poll,
+    mut poll: Poll
 ) -> Result<Response, ContractError> {
     // TODO verification
     // TODO ask for token fee of like 10 SVT idk
 
     let poll_id = next_poll_id(storage)?;
     poll.id = poll_id;
-    POLLS.save(storage, poll_id, &poll)?;
+    POLLS.save(storage, poll.id, &poll)?;
 
     Ok(Response::new()
         .add_attribute("action", "create_poll")
@@ -387,6 +398,6 @@ fn query_poll_votes(storage: &dyn Storage, poll_id: u64) -> StdResult<Binary> {
     to_binary(&POLLS.load(storage, poll_id)?.votes.list)
 }
 
-fn query_participated_polls(storage: &dyn Storage, addr: Addr) -> StdResult<Binary> {
+fn query_participated_polls(_storage: &dyn Storage, _addr: Addr) -> StdResult<Binary> {
     todo!()
 }

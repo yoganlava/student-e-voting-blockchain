@@ -1,4 +1,4 @@
-use cosmwasm_std::{OverflowError, StdError};
+use cosmwasm_std::{OverflowError, StdError, Uint128};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -25,5 +25,8 @@ pub enum ContractError {
     AlreadyVoted {},
 
     #[error("Invalid Authorisation")]
-    InvalidAuthorisation {}
+    InvalidAuthorisation {},
+
+    #[error("Invalid Amount Paid. Expected: {0} Got: {1}")]
+    InvalidAmountPaid(Uint128, Uint128)
 }

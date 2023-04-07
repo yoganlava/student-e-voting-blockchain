@@ -20,7 +20,7 @@
 	async function encryptVote({ pollID, tracker, vote }) {
 		const { keys } = await http(`${PUBLIC_MIXNET_URL}/mixnet/keys?pollID=${pollID}`, {}, 'GET');
 
-		return keys.reduce((text, publicKey) => encrypt(publicKey, text), `${vote}.${tracker}`)
+		return keys.reduce((text, publicKey) => encrypt(publicKey, text), `${vote}.${tracker}`);
 	}
 
 	async function registerVote() {
@@ -31,8 +31,8 @@
 
 		console.log(form);
 		const encryptedVote = await encryptVote(form);
-		await walletStore.executeContract({
-			cast_vote: {
+		await walletStore.executeContract({	
+			CastVote: {
 				poll_id: data.poll.id,
 				encrypted_vote: new Array(...encryptedVote)
 			}

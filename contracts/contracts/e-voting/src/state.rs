@@ -108,7 +108,7 @@ impl Poll {
         self.status = self.current_status(block, storage);
     }
 
-    pub fn has_passed(&self, block: &BlockInfo, storage: &dyn Storage) -> bool {
+    pub fn has_passed(&self, _block: &BlockInfo, storage: &dyn Storage) -> bool {
         match self.kind {
             PollKind::Threshold {
                 votes_needed
@@ -124,7 +124,7 @@ impl Poll {
                         .add(Uint128::from(voter_count as u64))
                 );
 
-                return up_vote_percentage >= percentage_needed;
+                up_vote_percentage >= percentage_needed
             }
             PollKind::Petition {
               votes_needed
@@ -142,9 +142,9 @@ impl Poll {
                 return vote
             }
 
-            let strings: Vec<&str> = vote.decrypted_vote.split(".").collect();
-            let mut decrypted_vote_kind = VoteKind::from_str(strings[0]);
-            let mut decrypted_vote_tracker = u64::from_str(strings[1]);
+            let strings: Vec<&str> = vote.decrypted_vote.split('.').collect();
+            let decrypted_vote_kind = VoteKind::from_str(strings[0]);
+            let decrypted_vote_tracker = u64::from_str(strings[1]);
 
             if decrypted_vote_kind.is_err() || decrypted_vote_tracker.is_err() {
                 vote.malformed = true;

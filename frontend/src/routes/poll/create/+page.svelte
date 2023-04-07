@@ -1,5 +1,5 @@
 <script>
-	import { PUBLIC_MIXNET_URL } from '$env/static/public';
+	import { PUBLIC_CONTRACT_ADDR, PUBLIC_MIXNET_URL, PUBLIC_TOKEN_ADDR } from '$env/static/public';
 	import http from '$lib/http';
 	import { walletStore } from '$lib/stores/wallet';
 	import { getTxLogAttribute, sleep, toastSuccess } from '$lib/utils';
@@ -26,19 +26,27 @@
 			}
 		};
 
-		const response = await walletStore.executeContract({
-			create_poll: formToSend
-		});
+		const response = await walletStore.executeContract(
+			{
+				send: {
+					contract: PUBLIC_CONTRACT_ADDR,
+					amount: "10000",
+					msg: Buffer.from(
+						JSON.stringify({
+							create_poll: formToSend
+						})
+					).toString('base64')
+				}
+			},
+			PUBLIC_TOKEN_ADDR
+		);
 		console.log(response);
 
 		if (response.success) toastSuccess('Poll Created!');
 
 		await sleep(6000);
 
-		const createdPollID = parseInt(
-			await getTxLogAttribute(response.result.txhash, 'poll_id'),
-			10
-		);
+		const createdPollID = parseInt(await getTxLogAttribute(response.result.txhash, 'poll_id'), 10);
 
 		console.log(createdPollID);
 

@@ -93,9 +93,9 @@ class WalletStore {
 		);
 	}
 
-	public async executeContract(msg) {
+	public async executeContract(msg, contractAddress?) {
 		return await this.connectedWallet.post({
-			msgs: [new MsgExecuteContract(this.connectedWallet.walletAddress, this.contractAddress, msg)]
+			msgs: [new MsgExecuteContract(this.connectedWallet.walletAddress, contractAddress ?? this.contractAddress, msg)]
 		});
 	}
 }
